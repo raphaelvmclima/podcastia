@@ -27,4 +27,5 @@ export async function settingsRoutes(app: FastifyInstance) {
 
     return { settings: data };
   });
+
 }

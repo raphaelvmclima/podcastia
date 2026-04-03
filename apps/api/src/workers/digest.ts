@@ -16,10 +16,11 @@ async function processDigest(job: Job<DigestJobData>) {
   const { jobId, userId } = job.data;
   console.log(`[Worker] Processing digest job ${jobId} for user ${userId}`);
 
-  await supabaseAdmin
+  const { error: updateErr } = await supabaseAdmin
     .from("digest_jobs")
     .update({ status: "processing", started_at: new Date().toISOString() })
     .eq("id", jobId);
+  if (updateErr) console.error("[Worker] Failed to update job status:", updateErr.message);
 
   try {
     // 1. Get user settings + instance token
@@ -42,12 +43,12 @@ async function processDigest(job: Job<DigestJobData>) {
     if (deliveryNumber === "self" || !deliveryNumber) {
       if (instanceToken) {
         try {
-          const statusRes = await fetch("https://loumarturismo.uazapi.com/instance/status", {
+          const statusRes = await fetch((process.env.UAZAPI_URL || "https://loumarturismo.uazapi.com") + "/instance/status", {
             headers: { token: instanceToken },
           });
           const statusData = (await statusRes.json()) as any;
           deliveryNumber = statusData?.instance?.owner || "";
-        } catch {}
+        } catch (err: any) { console.error(`[Worker] Failed to resolve delivery number via UAZAPI:`, err.message); }
       }
     }
 
@@ -67,7 +68,23 @@ async function processDigest(job: Job<DigestJobData>) {
         try {
           const items = await fetchSourceContent(source);
           if (items.length > 0) {
-            const inserts = items.map((item) => ({
+            // Deduplication: check existing content for this source
+            const existingContents = new Set<string>();
+            const { data: existing } = await supabaseAdmin
+              .from("captured_messages")
+              .select("content")
+              .eq("source_connection_id", source.id)
+              .order("captured_at", { ascending: false })
+              .limit(50);
+            existing?.forEach((m: any) => existingContents.add(m.content?.slice(0, 100)));
+
+            const newItems = items.filter((item: any) => !existingContents.has(item.content?.slice(0, 100)));
+            if (newItems.length === 0) {
+              console.log(`[Worker] All ${items.length} items from ${source.type}: ${source.name} already exist, skipping`);
+              continue;
+            }
+
+            const inserts = newItems.map((item) => ({
               user_id: userId,
               source_connection_id: source.id,
               source_type: source.type,
@@ -79,8 +96,12 @@ async function processDigest(job: Job<DigestJobData>) {
               processed: false,
             }));
 
-            await supabaseAdmin.from("captured_messages").insert(inserts);
-            console.log(`[Worker] Fetched ${items.length} items from ${source.type}: ${source.name}`);
+            const { error: insertErr } = await supabaseAdmin.from("captured_messages").insert(inserts);
+            if (insertErr) {
+              console.error(`[Worker] FAILED to insert ${items.length} items from ${source.type}: ${source.name}:`, insertErr.message);
+            } else {
+              console.log(`[Worker] Fetched and saved ${newItems.length} new items from ${source.type}: ${source.name} (${items.length - newItems.length} duplicates skipped)`);
+            }
           }
         } catch (err: any) {
           console.error(`[Worker] Error fetching source ${source.name}:`, err.message);
@@ -94,7 +115,8 @@ async function processDigest(job: Job<DigestJobData>) {
       .select("*")
       .eq("user_id", userId)
       .eq("processed", false)
-      .order("captured_at", { ascending: true });
+      .order("captured_at", { ascending: true })
+      .limit(200); // Max 200 messages per digest to avoid token overflow
 
     if (!messages || messages.length === 0) {
       await supabaseAdmin
@@ -150,34 +172,49 @@ async function processDigest(job: Job<DigestJobData>) {
       userProfile?.name || "ouvinte",
       (settings?.audio_style as "casual" | "formal") || "casual",
       maxChars,
-      userContext
+      userContext,
+      settings?.podcast_theme || "conversa"
     );
 
     // 7. Generate audio via Gemini TTS + ffmpeg
     console.log(`[Worker] Generating audio...`);
+    const theme = settings?.podcast_theme || "conversa";
     const { audioPath, duration } = await generateAudio(script, {
       speaker1Voice: settings?.audio_voice || "Sadachbia",
-    });
-
+    }, theme);
     // 8. Upload to Supabase Storage
     const audioB64 = audioToBase64(audioPath);
     const audioBuffer = Buffer.from(audioB64, "base64");
     const audioFileName = `digests/${userId}/${jobId}.ogg`;
 
-    await supabaseAdmin.storage.from("podcasts").upload(audioFileName, audioBuffer, {
+    const { error: storageErr } = await supabaseAdmin.storage.from("podcasts").upload(audioFileName, audioBuffer, {
       contentType: "audio/ogg",
       upsert: true,
     });
+    if (storageErr) throw new Error(`Storage upload failed: ${storageErr.message}`);
 
     const { data: signedUrl } = await supabaseAdmin.storage.from("podcasts").createSignedUrl(audioFileName, 86400);
 
+    const themeLabels: Record<string, string> = {
+      conversa: "Conversa do dia",
+      aula: "Aula do dia",
+      jornalistico: "Jornal do dia",
+      resumo: "Resumo executivo",
+      comentarios: "Comentarios do dia",
+      storytelling: "Historias do dia",
+      estudo_biblico: "Reflexao do dia",
+      debate: "Debate do dia",
+      entrevista: "Entrevista do dia",
+      motivacional: "Motivacional do dia",
+    };
+    const digestTitle = `${themeLabels[theme] || "Resumo do dia"} - ${new Date().toLocaleDateString("pt-BR")}`;
     // 9. Save digest
     const { data: digest } = await supabaseAdmin
       .from("digests")
       .insert({
         user_id: userId,
         job_id: jobId,
-        title: `Resumo do dia - ${new Date().toLocaleDateString("pt-BR")}`,
+        title: digestTitle,
         text_content: script,
         audio_url: signedUrl?.signedUrl || "",
         audio_duration_seconds: duration,
@@ -191,7 +228,14 @@ async function processDigest(job: Job<DigestJobData>) {
 
     // 10. Deliver via WhatsApp
     if (settings?.delivery_channel === "whatsapp" && deliveryNumber && instanceToken) {
-      const callText = `🎙 *PodcastIA* — Seu resumo chegou!\n\n📊 ${messages.length} mensagens de ${groups.length} fonte(s)\n⏱ Duração: ${Math.floor(duration / 60)}min ${duration % 60}s\n\nOuça agora:`;
+      const themeEmojis: Record<string, string> = { conversa: "💬", aula: "🎓", jornalistico: "📰", resumo: "📋", comentarios: "🗣️", storytelling: "📖", estudo_biblico: "📕", debate: "⚔️", entrevista: "🎤", motivacional: "🔥" };
+      const themeEmoji = themeEmojis[theme] || "🎙";
+      const callText = `${themeEmoji} *PodcastIA* — ${themeLabels[theme] || "Seu resumo"} chegou!
+
+📊 ${messages.length} mensagens de ${groups.length} fonte(s)
+⏱ Duração: ${Math.floor(duration / 60)}min ${duration % 60}s
+
+Ouça agora:`;
 
       await sendWhatsAppText(deliveryNumber, callText, instanceToken);
       await sendWhatsAppAudio(deliveryNumber, audioB64, instanceToken);
@@ -211,7 +255,7 @@ async function processDigest(job: Job<DigestJobData>) {
       .update({ status: "done", completed_at: new Date().toISOString(), sources_used: { messageCount: messages.length, groupCount: groups.length } })
       .eq("id", jobId);
 
-    try { unlinkSync(audioPath); } catch {}
+    try { unlinkSync(audioPath); } catch (err: any) { console.error(`[Worker] Failed to resolve delivery number via UAZAPI:`, err.message); }
     console.log(`[Worker] Digest ${jobId} completed! Duration: ${duration}s, delivered to ${deliveryNumber}`);
   } catch (err: any) {
     console.error(`[Worker] Digest ${jobId} failed:`, err);

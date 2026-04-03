@@ -18,8 +18,8 @@ interface Preference {
 const INITIAL_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
-    "Ola! Sou seu assistente de notícias com IA. Posso ajudar a configurar quais topicos você quer acompanhar, com que frequencia e de quais fontes. O que gostaria de configurar?",
-  suggestions: ["Quero notícias de tecnologia", "Configurar frequencia", "Ver minhas preferencias"],
+    "Olá! Sou seu assistente de notícias com IA. Posso ajudar a configurar quais tópicos você quer acompanhar, com que frequência e de quais fontes. O que gostaria de configurar?",
+  suggestions: ["Quero notícias de tecnologia", "Configurar frequência", "Ver minhas preferências"],
 };
 
 export default function NotíciasPage() {
@@ -76,7 +76,7 @@ export default function NotíciasPage() {
       });
       const assistantMsg: ChatMessage = {
         role: "assistant",
-        content: res.message || res.content || "",
+        content: res.response || res.message || res.content || "Sem resposta",
         suggestions: res.suggestions || [],
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -333,7 +333,7 @@ export default function NotíciasPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,áudio/*,.pdf,.doc,.docx"
+          accept="image/*,audio/*,.pdf,.doc,.docx"
           multiple
           onChange={handleFileSelect}
           style={{ display: "none" }}

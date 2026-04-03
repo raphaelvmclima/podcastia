@@ -8,7 +8,7 @@ interface Source {
   type: string;
   name: string;
   active: boolean;
-  config?: { url?: string };
+  config?: Record<string, any>;
   created_at: string;
 }
 
@@ -18,6 +18,15 @@ interface WaGroup {
   type: "group" | "contact";
 }
 
+interface FormField {
+  key: string;
+  label: string;
+  placeholder: string;
+  type?: "text" | "password" | "select" | "textarea";
+  options?: string[];
+  optional?: boolean;
+}
+
 const SOURCE_TYPES = [
   {
     id: "whatsapp",
@@ -25,23 +34,10 @@ const SOURCE_TYPES = [
     desc: "Grupos e contatos",
     color: "var(--success)",
     bg: "var(--success-subtle)",
+    status: "active",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-      </svg>
-    ),
-  },
-  {
-    id: "instagram",
-    name: "Instagram",
-    desc: "Posts e stories",
-    color: "#E1306C",
-    bg: "#fce4ec",
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
       </svg>
     ),
   },
@@ -51,6 +47,7 @@ const SOURCE_TYPES = [
     desc: "Feeds de notícias",
     color: "#FF8C00",
     bg: "var(--warning-subtle)",
+    status: "active",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 11a9 9 0 0 1 9 9" />
@@ -64,11 +61,69 @@ const SOURCE_TYPES = [
     name: "YouTube",
     desc: "Canais e playlists",
     color: "#FF0000",
-    bg: "#ffebee",
+    bg: "rgba(255, 0, 0, 0.08)",
+    status: "active",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19.1c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
         <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
+      </svg>
+    ),
+  },
+  {
+    id: "http_request",
+    name: "HTTP Request",
+    desc: "APIs e endpoints",
+    color: "#10B981",
+    bg: "#ecfdf5",
+    status: "active",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+    ),
+  },
+  {
+    id: "webhook",
+    name: "Webhook",
+    desc: "Receber dados externos",
+    color: "#F59E0B",
+    bg: "var(--warning-subtle)",
+    status: "active",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" />
+        <path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06" />
+        <path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8H12" />
+      </svg>
+    ),
+  },
+  {
+    id: "file",
+    name: "Arquivo",
+    desc: "PDFs, imagens e textos",
+    color: "#06B6D4",
+    bg: "rgba(6, 182, 212, 0.12)",
+    status: "active",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+    ),
+  },
+  {
+    id: "instagram",
+    name: "Instagram",
+    desc: "Posts e stories",
+    color: "#E1306C",
+    bg: "#fce4ec",
+    status: "soon",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
       </svg>
     ),
   },
@@ -78,6 +133,7 @@ const SOURCE_TYPES = [
     desc: "Perfis e buscas",
     color: "var(--fg)",
     bg: "var(--bg-secondary)",
+    status: "soon",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -90,6 +146,7 @@ const SOURCE_TYPES = [
     desc: "Canais e grupos",
     color: "#0088cc",
     bg: "#e3f2fd",
+    status: "soon",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="22" y1="2" x2="11" y2="13" />
@@ -103,6 +160,7 @@ const SOURCE_TYPES = [
     desc: "Newsletters",
     color: "var(--primary)",
     bg: "var(--primary-subtle)",
+    status: "soon",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -111,11 +169,12 @@ const SOURCE_TYPES = [
     ),
   },
   {
-    id: "notícias-ia",
+    id: "noticias-ia",
     name: "Notícias IA",
     desc: "Curadoria com IA",
     color: "#8B5CF6",
     bg: "#ede9fe",
+    status: "active",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -124,26 +183,109 @@ const SOURCE_TYPES = [
       </svg>
     ),
   },
+  {
+    id: "passagens",
+    name: "Passagens Aéreas",
+    desc: "Monitore preços por destino",
+    color: "#0EA5E9",
+    bg: "rgba(14, 165, 233, 0.12)",
+    status: "soon",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+      </svg>
+    ),
+  },
+  {
+    id: "crm",
+    name: "CRM",
+    desc: "Integre seu CRM (HubSpot, Pipedrive)",
+    color: "#F97316",
+    bg: "rgba(249, 115, 22, 0.12)",
+    status: "soon",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    ),
+  },
+  {
+    id: "google_calendar",
+    name: "Google Agenda",
+    desc: "Resumo de compromissos e reuniões",
+    color: "#4285F4",
+    bg: "rgba(66, 133, 244, 0.12)",
+    status: "soon",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>
+      </svg>
+    ),
+  },
+  {
+    id: "google_shopping",
+    name: "Preços de Produtos",
+    desc: "Monitore preços em lojas online",
+    color: "#EA4335",
+    bg: "rgba(234, 67, 53, 0.12)",
+    status: "soon",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+    ),
+  },
 ];
+
+const FORM_FIELDS: Record<string, FormField[]> = {
+  rss: [{ key: "url", label: "URL do Feed RSS", placeholder: "https://exemplo.com/feed.xml" }],
+  youtube: [{ key: "url", label: "URL do Canal ou Playlist", placeholder: "https://youtube.com/@canal" }],
+  instagram: [{ key: "url", label: "URL do Perfil", placeholder: "https://instagram.com/perfil" }],
+  twitter: [{ key: "url", label: "URL do Perfil ou Busca", placeholder: "https://x.com/perfil" }],
+  telegram: [
+    { key: "url", label: "URL do Canal", placeholder: "https://t.me/canal" },
+    { key: "bot_token", label: "Token do Bot (BotFather)", placeholder: "123456:ABC-DEF1234...", optional: true },
+  ],
+  email: [
+    { key: "email", label: "Endereço de Email", placeholder: "newsletter@exemplo.com" },
+    { key: "imap_host", label: "Servidor IMAP", placeholder: "imap.gmail.com" },
+    { key: "imap_port", label: "Porta IMAP", placeholder: "993", optional: true },
+    { key: "password", label: "Senha / App Password", placeholder: "", type: "password" },
+  ],
+  http_request: [
+    { key: "url", label: "URL do Endpoint", placeholder: "https://api.exemplo.com/data" },
+    { key: "method", label: "Método HTTP", placeholder: "GET", type: "select", options: ["GET", "POST", "PUT", "PATCH"] },
+    { key: "headers", label: "Headers (JSON)", placeholder: '{"Authorization": "Bearer token123"}', type: "textarea", optional: true },
+    { key: "body", label: "Body (JSON)", placeholder: '{"key": "value"}', type: "textarea", optional: true },
+  ],
+  webhook: [],
+};
+
+const COMING_SOON = new Set(["instagram", "twitter", "telegram", "email", "passagens", "crm", "google_calendar", "google_shopping"]);
 
 export default function FontesPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
-  const [waStatus, setWaStatus] = useState<{ connected: boolean; qr?: string } | null>(null);
+  const [waStatus, setWaStatus] = useState<{ connected: boolean; qrcode?: string } | null>(null);
   const [waGroups, setWaGroups] = useState<WaGroup[]>([]);
   const [waSearch, setWaSearch] = useState("");
   const [waFilter, setWaFilter] = useState<"all" | "groups" | "contacts">("all");
   const [selectedGroups, setSelectedGroups] = useState<WaGroup[]>([]);
   const [formName, setFormName] = useState("");
-  const [formUrl, setFormUrl] = useState("");
+  const [formConfig, setFormConfig] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
     try {
       const res = await api("/api/sources");
-      setSources(res?.sources || res || []);
+      const raw = res?.sources || res || [];
+      setSources(raw.map((s: any) => ({ ...s, active: s.is_active ?? s.active ?? false })));
     } catch {
       /* empty */
     } finally {
@@ -156,8 +298,18 @@ export default function FontesPage() {
   }, [fetchSources]);
 
   const handleTypeClick = async (typeId: string) => {
-    if (typeId === "notícias-ia") {
+    if (COMING_SOON.has(typeId)) {
+      setShowTypeSelector(false);
+      return;
+    }
+    setShowTypeSelector(false);
+
+    if (typeId === "noticias-ia") {
       window.location.href = "/dashboard/noticias";
+      return;
+    }
+    if (typeId === "file") {
+      setActivePanel("file");
       return;
     }
     if (typeId === "whatsapp") {
@@ -176,7 +328,7 @@ export default function FontesPage() {
     }
     setActivePanel(typeId);
     setFormName("");
-    setFormUrl("");
+    setFormConfig(typeId === "http_request" ? { method: "GET" } : {});
   };
 
   const loadGroups = async (search?: string, filter?: string) => {
@@ -198,6 +350,20 @@ export default function FontesPage() {
     try {
       const res = await api("/api/sources/whatsapp/connect", { method: "POST" });
       setWaStatus(res);
+      if (res?.qrcode && !res?.connected) {
+        const pollInterval = window.setInterval(async () => {
+          try {
+            const status = await api("/api/sources/whatsapp/status");
+            if (status?.connected) {
+              window.clearInterval(pollInterval);
+              setWaStatus({ connected: true });
+              setActivePanel("wa-groups");
+              loadGroups();
+            }
+          } catch { /* ignore */ }
+        }, 3000);
+        setTimeout(() => window.clearInterval(pollInterval), 120000);
+      }
     } catch {
       /* empty */
     }
@@ -241,14 +407,20 @@ export default function FontesPage() {
   };
 
   const handleAddSource = async () => {
-    if (!formName.trim() || !formUrl.trim() || !activePanel) return;
+    if (!formName.trim() || !activePanel) return;
+
+    const fields = FORM_FIELDS[activePanel] || [];
+    const requiredFields = fields.filter((f) => !f.optional);
+    if (activePanel !== "webhook" && requiredFields.some((f) => !formConfig[f.key]?.trim())) return;
+
     setSaving(true);
     try {
-      await api("/api/sources", {
+      const res = await api("/api/sources", {
         method: "POST",
-        body: JSON.stringify({ type: activePanel, name: formName, config: { url: formUrl } }),
+        body: JSON.stringify({ type: activePanel, name: formName, config: formConfig }),
       });
       setActivePanel(null);
+      setShowTypeSelector(false);
       fetchSources();
     } catch {
       /* empty */
@@ -281,6 +453,36 @@ export default function FontesPage() {
     );
   };
 
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedUrl(id);
+    setTimeout(() => setCopiedUrl(null), 2000);
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const session = JSON.parse(localStorage.getItem("podcastia_session") || "{}");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/sources/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload falhou");
+      const data = await res.json();
+      fetchSources();
+      setActivePanel(null);
+    } catch (err: any) {
+      setUploadError("Erro no upload: " + err.message);
+      setTimeout(() => setUploadError(null), 5000);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
   useEffect(() => {
     if (activePanel === "wa-groups") {
       loadGroups(waSearch, waFilter);
@@ -290,51 +492,153 @@ export default function FontesPage() {
 
   const getTypeInfo = (typeId: string) => SOURCE_TYPES.find((t) => t.id === typeId);
 
+  const inputStyle = {
+    width: "100%",
+    padding: "8px 12px",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-md)",
+    background: "var(--bg)",
+    color: "var(--fg)",
+    fontSize: "var(--text-sm)",
+    outline: "none",
+    boxSizing: "border-box" as const,
+  };
+
+  const renderFormField = (field: FormField) => {
+    if (field.type === "select") {
+      return (
+        <select
+          value={formConfig[field.key] || field.options?.[0] || ""}
+          onChange={(e) => setFormConfig((c) => ({ ...c, [field.key]: e.target.value }))}
+          style={inputStyle}
+        >
+          {field.options?.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      );
+    }
+    if (field.type === "textarea") {
+      return (
+        <textarea
+          placeholder={field.placeholder}
+          value={formConfig[field.key] || ""}
+          onChange={(e) => setFormConfig((c) => ({ ...c, [field.key]: e.target.value }))}
+          style={{ ...inputStyle, minHeight: "60px", resize: "vertical", fontFamily: "monospace", fontSize: "12px" }}
+          rows={3}
+        />
+      );
+    }
+    return (
+      <input
+        type={field.type || "text"}
+        placeholder={field.placeholder}
+        value={formConfig[field.key] || ""}
+        onChange={(e) => setFormConfig((c) => ({ ...c, [field.key]: e.target.value }))}
+        style={inputStyle}
+      />
+    );
+  };
+
   return (
     <div className="animate-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--fg)", margin: 0 }}>Fontes</h1>
-        <button className="btn-primary" onClick={() => setActivePanel(null)} style={{ fontSize: "var(--text-sm)" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Adicionar fonte
+        <button
+          className={showTypeSelector ? "btn-ghost" : "btn-primary"}
+          onClick={() => {
+            setShowTypeSelector(!showTypeSelector);
+            if (showTypeSelector) setActivePanel(null);
+          }}
+          style={{ fontSize: "var(--text-sm)" }}
+        >
+          {showTypeSelector ? (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              Cancelar
+            </>
+          ) : (
+            <>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "6px" }}>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Adicionar fonte
+            </>
+          )}
         </button>
       </div>
 
-      {/* Source type cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px" }}>
-        {SOURCE_TYPES.map((type) => (
-          <div
-            key={type.id}
-            className="card card-interactive"
-            onClick={() => handleTypeClick(type.id)}
-            style={{ padding: "16px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", textAlign: "center" }}
-          >
-            <div
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                background: type.bg,
-                color: type.color,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              {type.icon}
-            </div>
-            <div>
-              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--fg)" }}>{type.name}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginTop: "2px" }}>{type.desc}</div>
-            </div>
+      {/* Source type selector */}
+      {showTypeSelector && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <p style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)", margin: 0 }}>
+            Escolha o tipo de fonte para adicionar:
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" }}>
+            {SOURCE_TYPES.map((type) => (
+              <div
+                key={type.id}
+                className="card card-interactive"
+                onClick={() => handleTypeClick(type.id)}
+                style={{
+                  padding: "14px 10px",
+                  cursor: type.status === "soon" ? "default" : "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "8px",
+                  textAlign: "center",
+                  opacity: type.status === "soon" ? 0.5 : 1,
+                  position: "relative",
+                }}
+              >
+                {type.status === "soon" && (
+                  <span style={{
+                    position: "absolute",
+                    top: "6px",
+                    right: "6px",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    color: "#F59E0B",
+                    background: "var(--warning-subtle)",
+                    padding: "1px 5px",
+                    borderRadius: "4px",
+                    border: "1px solid #FDE68A",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}>
+                    Em breve
+                  </span>
+                )}
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    background: type.bg,
+                    color: type.color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {type.icon}
+                </div>
+                <div>
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--fg)" }}>{type.name}</div>
+                  <div style={{ fontSize: "10px", color: "var(--fg-muted)", marginTop: "2px" }}>{type.desc}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* WhatsApp Connect Panel */}
       {activePanel === "wa-connect" && (
@@ -368,9 +672,9 @@ export default function FontesPage() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-              {waStatus?.qr ? (
+              {waStatus?.qrcode ? (
                 <div style={{ padding: "16px", background: "white", borderRadius: "var(--radius-md)" }}>
-                  <img src={waStatus.qr} alt="QR Code" style={{ width: "200px", height: "200px" }} />
+                  <img src={waStatus.qrcode} alt="QR Code" style={{ width: "200px", height: "200px" }} />
                 </div>
               ) : (
                 <div style={{ width: "200px", height: "200px", background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -406,8 +710,6 @@ export default function FontesPage() {
               </button>
             </div>
           </div>
-
-          {/* Search */}
           <div style={{ position: "relative", marginBottom: "12px" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}>
               <circle cx="11" cy="11" r="8" />
@@ -418,21 +720,9 @@ export default function FontesPage() {
               placeholder="Buscar..."
               value={waSearch}
               onChange={(e) => setWaSearch(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px 8px 36px",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-md)",
-                background: "var(--bg)",
-                color: "var(--fg)",
-                fontSize: "var(--text-sm)",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
+              style={{ ...inputStyle, paddingLeft: "36px" }}
             />
           </div>
-
-          {/* Filter tabs */}
           <div style={{ display: "flex", gap: "4px", marginBottom: "16px" }}>
             {(["all", "groups", "contacts"] as const).map((f) => (
               <button
@@ -445,8 +735,6 @@ export default function FontesPage() {
               </button>
             ))}
           </div>
-
-          {/* Group list */}
           <div style={{ maxHeight: "300px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px", marginBottom: "16px" }}>
             {loadingGroups ? (
               <>
@@ -508,21 +796,104 @@ export default function FontesPage() {
               })
             )}
           </div>
-
-          {/* Actions */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)" }}>
               {selectedGroups.length} selecionado{selectedGroups.length !== 1 ? "s" : ""}
             </span>
             <button className="btn-primary" onClick={handleSaveWaGroups} disabled={selectedGroups.length === 0 || saving} style={{ fontSize: "var(--text-sm)" }}>
-              {saving ? "Salvando..." : "Salvar selecao"}
+              {saving ? "Salvando..." : "Salvar seleção"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Add source form (non-WhatsApp) */}
-      {activePanel && activePanel !== "wa-connect" && activePanel !== "wa-groups" && activePanel !== "notícias-ia" && (
+      {/* File Upload Panel */}
+      {activePanel === "file" && (
+        <div className="card" style={{ padding: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h2 style={{ fontSize: "var(--text-base)", fontWeight: 600, color: "var(--fg)", margin: 0 }}>
+              Upload de Arquivo
+            </h2>
+            <button className="btn-ghost" onClick={() => setActivePanel(null)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div
+            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = "#06B6D4"; e.currentTarget.style.background = "rgba(6, 182, 212, 0.08)"; }}
+            onDragLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-secondary)"; }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.style.borderColor = "var(--border)";
+              e.currentTarget.style.background = "var(--bg-secondary)";
+              const file = e.dataTransfer.files[0];
+              if (file) handleFileUpload(file);
+            }}
+            style={{
+              border: "2px dashed var(--border)",
+              borderRadius: "var(--radius-md)",
+              padding: "40px 24px",
+              textAlign: "center",
+              background: "var(--bg-secondary)",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+            onClick={() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = ".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv";
+              input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) handleFileUpload(file);
+              };
+              input.click();
+            }}
+          >
+            {uploading ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                <div className="skeleton" style={{ width: "48px", height: "48px", borderRadius: "50%" }} />
+                <p style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)", margin: 0 }}>Enviando arquivo...</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(6, 182, 212, 0.12)", color: "#06B6D4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+                <div>
+                  <p style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--fg)", margin: "0 0 4px 0" }}>
+                    Arraste um arquivo aqui ou clique para selecionar
+                  </p>
+                  <p style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", margin: 0 }}>
+                    PDF, PNG, JPG, WebP, TXT, CSV
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          {uploadError && (
+            <div style={{
+              marginTop: "12px",
+              padding: "10px 14px",
+              borderRadius: "var(--radius-md)",
+              background: "var(--danger-subtle)",
+              color: "var(--danger)",
+              fontSize: "var(--text-sm)",
+              fontWeight: 500,
+            }}>
+              {uploadError}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Generic add source form */}
+      {activePanel && !["wa-connect", "wa-groups", "file"].includes(activePanel) && (
         <div className="card" style={{ padding: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <h2 style={{ fontSize: "var(--text-base)", fontWeight: 600, color: "var(--fg)", margin: 0 }}>
@@ -535,50 +906,93 @@ export default function FontesPage() {
               </svg>
             </button>
           </div>
+
+          {COMING_SOON.has(activePanel) && (
+            <div style={{
+              padding: "10px 14px",
+              borderRadius: "var(--radius-md)",
+              background: "var(--warning-subtle)",
+              border: "1px solid #FDE68A",
+              marginBottom: "16px",
+              fontSize: "var(--text-sm)",
+              color: "var(--warning)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              Este tipo de fonte está em desenvolvimento. Você pode salvar a configuração e ela será ativada automaticamente quando disponível.
+            </div>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div>
-              <label style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginBottom: "4px", display: "block" }}>Nome</label>
+              <label style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginBottom: "4px", display: "block" }}>
+                Nome da fonte
+              </label>
               <input
                 type="text"
-                placeholder="Ex: Blog da empresa"
+                placeholder="Ex: Minha fonte de dados"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  background: "var(--bg)",
-                  color: "var(--fg)",
-                  fontSize: "var(--text-sm)",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
+                style={inputStyle}
               />
             </div>
-            <div>
-              <label style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginBottom: "4px", display: "block" }}>URL</label>
-              <input
-                type="text"
-                placeholder="https://..."
-                value={formUrl}
-                onChange={(e) => setFormUrl(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  background: "var(--bg)",
-                  color: "var(--fg)",
-                  fontSize: "var(--text-sm)",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
+
+            {activePanel === "webhook" && (
+              <div style={{
+                padding: "12px 14px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border)",
+                fontSize: "var(--text-sm)",
+                color: "var(--fg-muted)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <strong style={{ color: "var(--fg)" }}>Como funciona:</strong>
+                </div>
+                Ao salvar, uma URL única será gerada. Envie dados via POST para essa URL e eles serao capturados automaticamente como conteudo para seus podcasts.
+                <br /><br />
+                <strong>Formato aceito:</strong> JSON com campos <code style={{ background: "var(--bg)", padding: "1px 4px", borderRadius: "3px" }}>content</code> ou <code style={{ background: "var(--bg)", padding: "1px 4px", borderRadius: "3px" }}>text</code> (ou qualquer JSON sera capturado).
+              </div>
+            )}
+
+            {(FORM_FIELDS[activePanel] || []).map((field) => (
+              <div key={field.key}>
+                <label style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginBottom: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+                  {field.label}
+                  {field.optional && <span style={{ fontSize: "10px", color: "var(--fg-faint)" }}>(opcional)</span>}
+                </label>
+                {renderFormField(field)}
+              </div>
+            ))}
+
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
-              <button className="btn-ghost" onClick={() => setActivePanel(null)} style={{ fontSize: "var(--text-sm)" }}>Cancelar</button>
-              <button className="btn-primary" onClick={handleAddSource} disabled={!formName.trim() || !formUrl.trim() || saving} style={{ fontSize: "var(--text-sm)" }}>
+              <button className="btn-ghost" onClick={() => setActivePanel(null)} style={{ fontSize: "var(--text-sm)" }}>
+                Cancelar
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleAddSource}
+                disabled={
+                  !formName.trim() ||
+                  saving ||
+                  (activePanel !== "webhook" &&
+                    (FORM_FIELDS[activePanel] || [])
+                      .filter((f) => !f.optional)
+                      .some((f) => !formConfig[f.key]?.trim()))
+                }
+                style={{ fontSize: "var(--text-sm)" }}
+              >
                 {saving ? "Salvando..." : "Adicionar"}
               </button>
             </div>
@@ -600,90 +1014,123 @@ export default function FontesPage() {
         ) : sources.length === 0 ? (
           <div className="card" style={{ padding: "32px", textAlign: "center" }}>
             <p style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)", margin: 0 }}>
-              Nenhuma fonte configurada ainda. Escolha um tipo acima para começar.
+              Nenhuma fonte configurada ainda. Clique em &quot;Adicionar fonte&quot; para começar.
             </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {sources.map((source) => {
               const typeInfo = getTypeInfo(source.type);
+              const webhookUrl = source.config?.webhook_url;
               return (
                 <div
                   key={source.id}
                   className="card"
-                  style={{
-                    padding: "10px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                  }}
+                  style={{ padding: "10px 16px" }}
                 >
-                  <div
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      background: typeInfo?.bg || "var(--bg-secondary)",
-                      color: typeInfo?.color || "var(--fg-muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {typeInfo ? (
-                      <div style={{ width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>{typeInfo.icon}</div>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /></svg>
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--fg)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {source.name}
-                    </div>
-                    <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-faint)" }}>
-                      {typeInfo?.name || source.type}
-                    </div>
-                  </div>
-                  {/* Toggle */}
-                  <button
-                    onClick={() => handleToggle(source.id)}
-                    style={{
-                      width: "36px",
-                      height: "20px",
-                      borderRadius: "10px",
-                      border: "none",
-                      background: source.active ? "var(--success)" : "var(--border)",
-                      cursor: "pointer",
-                      position: "relative",
-                      flexShrink: 0,
-                      transition: "background 0.2s",
-                    }}
-                  >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     <div
                       style={{
-                        width: "16px",
-                        height: "16px",
+                        width: "32px",
+                        height: "32px",
                         borderRadius: "50%",
-                        background: "white",
-                        position: "absolute",
-                        top: "2px",
-                        left: source.active ? "18px" : "2px",
-                        transition: "left 0.2s",
+                        background: typeInfo?.bg || "var(--bg-secondary)",
+                        color: typeInfo?.color || "var(--fg-muted)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
                       }}
-                    />
-                  </button>
-                  {/* Delete */}
-                  <button
-                    className="btn-ghost"
-                    onClick={() => handleDelete(source.id)}
-                    style={{ padding: "4px", color: "var(--fg-muted)", flexShrink: 0 }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
+                    >
+                      {typeInfo ? (
+                        <div style={{ width: "16px", height: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>{typeInfo.icon}</div>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /></svg>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--fg)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {source.name}
+                      </div>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-faint)" }}>
+                        {typeInfo?.name || source.type}
+                        {source.config?.url && (
+                          <span style={{ marginLeft: "6px", opacity: 0.7 }}>{source.config.url.length > 40 ? source.config.url.slice(0, 40) + "..." : source.config.url}</span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Toggle */}
+                    <button
+                      onClick={() => handleToggle(source.id)}
+                      style={{
+                        width: "36px",
+                        height: "20px",
+                        borderRadius: "10px",
+                        border: "none",
+                        background: source.active ? "var(--success)" : "var(--border)",
+                        cursor: "pointer",
+                        position: "relative",
+                        flexShrink: 0,
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "16px",
+                          height: "16px",
+                          borderRadius: "50%",
+                          background: "white",
+                          position: "absolute",
+                          top: "2px",
+                          left: source.active ? "18px" : "2px",
+                          transition: "left 0.2s",
+                        }}
+                      />
+                    </button>
+                    {/* Delete */}
+                    <button
+                      className="btn-ghost"
+                      onClick={() => handleDelete(source.id)}
+                      style={{ padding: "4px", color: "var(--fg-muted)", flexShrink: 0 }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Webhook URL display */}
+                  {webhookUrl && (
+                    <div style={{
+                      marginTop: "8px",
+                      padding: "6px 10px",
+                      borderRadius: "var(--radius-md)",
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}>
+                      <code style={{
+                        flex: 1,
+                        fontSize: "11px",
+                        color: "var(--fg-muted)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}>
+                        {webhookUrl}
+                      </code>
+                      <button
+                        className="btn-ghost"
+                        onClick={() => copyToClipboard(webhookUrl, source.id)}
+                        style={{ padding: "2px 6px", fontSize: "11px", flexShrink: 0 }}
+                      >
+                        {copiedUrl === source.id ? "Copiado!" : "Copiar"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -82,7 +82,7 @@ export default function RegisterPage() {
               id="password"
               type="password"
               className="input"
-              placeholder="Minimo 6 caracteres"
+              placeholder="Mínimo 6 caracteres"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -102,7 +102,7 @@ export default function RegisterPage() {
         </form>
 
         <p style={{ textAlign: "center", fontSize: "var(--text-sm)", color: "var(--fg-muted)", marginTop: 24 }}>
-          Ja tem conta?{" "}
+          Já tem conta?{" "}
           <Link href="/login" style={{ color: "var(--primary)", fontWeight: 500 }}>
             Entrar
           </Link>

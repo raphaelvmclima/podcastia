@@ -13,6 +13,7 @@ interface Settings {
   timezone: string;
   audio_style: string;
   audio_voice: string;
+  podcast_theme: string;
 }
 
 const PhoneIcon = () => (
@@ -103,13 +104,13 @@ const deliveryOptions: {
   {
     value: "self",
     label: "Para mim mesmo",
-    desc: "Receba no seu proprio WhatsApp",
+    desc: "Receba no seu próprio WhatsApp",
     icon: <PhoneIcon />,
   },
   {
     value: "contact",
     label: "Para um contato",
-    desc: "Envie para outro numero",
+    desc: "Envie para outro número",
     icon: <UserIcon />,
   },
   {
@@ -121,7 +122,7 @@ const deliveryOptions: {
   {
     value: "email",
     label: "Por email",
-    desc: "Receba por email com link do audio",
+    desc: "Receba por email com link do áudio",
     icon: <MailIcon />,
   },
 ];
@@ -129,10 +130,10 @@ const deliveryOptions: {
 const timezones = [
   { value: "America/Sao_Paulo", label: "Brasilia (GMT-3)" },
   { value: "America/Manaus", label: "Manaus (GMT-4)" },
-  { value: "America/Belem", label: "Belem (GMT-3)" },
+  { value: "America/Belem", label: "Belém (GMT-3)" },
   { value: "America/Fortaleza", label: "Fortaleza (GMT-3)" },
   { value: "America/Recife", label: "Recife (GMT-3)" },
-  { value: "America/Cuiaba", label: "Cuiaba (GMT-4)" },
+  { value: "America/Cuiaba", label: "Cuiabá (GMT-4)" },
   { value: "America/Porto_Velho", label: "Porto Velho (GMT-4)" },
   { value: "America/Rio_Branco", label: "Rio Branco (GMT-5)" },
   { value: "America/New_York", label: "Nova York (GMT-5)" },
@@ -140,10 +141,23 @@ const timezones = [
 ];
 
 const voiceOptions = [
-  { value: "onyx", label: "Onyx (masculina grave)" },
-  { value: "nova", label: "Nova (feminina clara)" },
-  { value: "echo", label: "Echo (masculina neutra)" },
-  { value: "shimmer", label: "Shimmer (feminina suave)" },
+  { value: "Sadachbia", label: "Leo (masculina, host principal)" },
+  { value: "Leda", label: "Isa (feminina, co-host)" },
+];
+
+
+
+const podcastThemes = [
+  { id: "conversa", name: "Conversa", icon: "💬", desc: "Dois hosts conversando naturalmente" },
+  { id: "aula", name: "Aula", icon: "🎓", desc: "Professor explicando de forma didática" },
+  { id: "jornalistico", name: "Jornalístico", icon: "📰", desc: "Formato telejornal profissional" },
+  { id: "resumo", name: "Resumo Executivo", icon: "📋", desc: "Direto ao ponto, focado em ação" },
+  { id: "comentarios", name: "Comentários", icon: "🗣️", desc: "Análise opinativa com debates" },
+  { id: "storytelling", name: "Storytelling", icon: "📖", desc: "Notícias como histórias envolventes" },
+  { id: "estudo_biblico", name: "Estudo Bíblico", icon: "📕", desc: "Reflexões com base bíblica" },
+  { id: "debate", name: "Debate", icon: "⚔️", desc: "Hosts debatendo com posições opostas" },
+  { id: "entrevista", name: "Entrevista", icon: "🎤", desc: "Formato pergunta e resposta" },
+  { id: "motivacional", name: "Motivacional", icon: "🔥", desc: "Conteúdo inspirador e prático" },
 ];
 
 const inputStyles: React.CSSProperties = {
@@ -174,7 +188,8 @@ export default function ConfiguracoesPage() {
     schedule_times: "07:00",
     timezone: "America/Sao_Paulo",
     audio_style: "casual",
-    audio_voice: "onyx",
+    audio_voice: "Sadachbia",
+    podcast_theme: "conversa",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -193,7 +208,21 @@ export default function ConfiguracoesPage() {
     api("/api/settings")
       .then((data) => {
         if (data.settings) {
-          setSettings((prev) => ({ ...prev, ...data.settings }));
+          const s = { ...data.settings };
+          // schedule_times is stored as array in DB, convert to string for input
+          if (Array.isArray(s.schedule_times)) {
+            s.schedule_times = s.schedule_times[0] || "08:00";
+          }
+          // Map backend delivery_channel to frontend values
+          if (s.delivery_channel === "whatsapp") {
+            if (!s.delivery_target || s.delivery_target === "self") {
+              s.delivery_channel = "self";
+              s.delivery_target = "";
+            } else {
+              s.delivery_channel = "contact";
+            }
+          }
+          setSettings((prev) => ({ ...prev, ...s }));
         }
         setLoading(false);
       })
@@ -204,14 +233,32 @@ export default function ConfiguracoesPage() {
     setSaving(true);
     setSaveMessage(null);
     try {
-      await api("/api/settings", {
+      const payload = {
+        delivery_channel: ["self", "contact", "group"].includes(settings.delivery_channel)
+          ? "whatsapp"
+          : settings.delivery_channel,
+        delivery_target: settings.delivery_channel === "self"
+          ? "self"
+          : settings.delivery_target,
+        schedule_times: Array.isArray(settings.schedule_times)
+          ? settings.schedule_times
+          : [settings.schedule_times],
+        timezone: settings.timezone,
+        audio_style: settings.audio_style,
+        audio_voice: settings.audio_voice,
+        podcast_theme: settings.podcast_theme,
+      };
+      console.log("[Settings] Saving:", JSON.stringify(payload));
+      const result = await api("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(payload),
       });
-      setSaveMessage({ type: "success", text: "Configuracoes salvas com sucesso!" });
-    } catch {
-      setSaveMessage({ type: "error", text: "Erro ao salvar configuracoes. Tente novamente." });
+      console.log("[Settings] Save result:", JSON.stringify(result));
+      setSaveMessage({ type: "success", text: "Configurações salvas com sucesso!" });
+    } catch (err: any) {
+      console.error("[Settings] Save error:", err.message);
+      setSaveMessage({ type: "error", text: "Erro ao salvar: " + err.message });
     } finally {
       setSaving(false);
       setTimeout(() => setSaveMessage(null), 4000);
@@ -225,7 +272,7 @@ export default function ConfiguracoesPage() {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordMessage({ type: "error", text: "As senhas nao coincidem." });
+      setPasswordMessage({ type: "error", text: "As senhas não coincidem." });
       return;
     }
     if (newPassword.length < 6) {
@@ -266,11 +313,55 @@ export default function ConfiguracoesPage() {
       {/* Header */}
       <div>
         <h1 style={{ fontSize: "var(--text-xl)", fontWeight: 700, color: "var(--fg)", margin: 0 }}>
-          Configuracoes
+          Configurações
         </h1>
         <p style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)", margin: "4px 0 0" }}>
-          Personalize como e quando voce recebe seus resumos
+          Personalize como e quando você recebe seus resumos
         </p>
+      </div>
+
+      {/* Podcast theme */}
+      <div className="card" style={{ padding: 24 }}>
+        <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--fg)", margin: "0 0 4px" }}>
+          Estilo do Podcast
+        </h2>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)", margin: "0 0 16px" }}>
+          Escolha o formato e tom do seu podcast gerado
+        </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+          {podcastThemes.map((t) => {
+            const selected = settings.podcast_theme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setSettings((prev) => ({ ...prev, podcast_theme: t.id }))}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 6,
+                  padding: "14px 16px",
+                  border: `2px solid ${selected ? "var(--primary)" : "var(--border)"}`,
+                  borderRadius: "var(--radius-lg)",
+                  background: selected ? "var(--primary-subtle)" : "var(--bg)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.15s ease",
+                  width: "100%",
+                }}
+              >
+                <span style={{ fontSize: 24 }}>{t.icon}</span>
+                <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: selected ? "var(--primary)" : "var(--fg)" }}>
+                  {t.name}
+                </span>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", lineHeight: 1.3 }}>
+                  {t.desc}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Delivery channel */}
@@ -374,7 +465,7 @@ export default function ConfiguracoesPage() {
         {/* Conditional input fields */}
         {settings.delivery_channel === "contact" && (
           <div style={{ marginTop: 16 }}>
-            <label style={labelStyles}>Numero do contato</label>
+            <label style={labelStyles}>Número do contato</label>
             <input
               type="tel"
               placeholder="+55 11 99999-9999"
@@ -420,7 +511,7 @@ export default function ConfiguracoesPage() {
 
         {settings.delivery_channel === "email" && (
           <div style={{ marginTop: 16 }}>
-            <label style={labelStyles}>Endereco de email</label>
+            <label style={labelStyles}>Endereço de email</label>
             <input
               type="email"
               placeholder="seu@email.com"
@@ -448,12 +539,12 @@ export default function ConfiguracoesPage() {
           Horario
         </h2>
         <p style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)", margin: "0 0 16px" }}>
-          Defina o horario e fuso para receber o resumo
+          Defina o horário e fuso para receber o resumo
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div>
-            <label style={labelStyles}>Horario de envio</label>
+            <label style={labelStyles}>Horário de envio</label>
             <input
               type="time"
               value={settings.schedule_times}
@@ -472,7 +563,7 @@ export default function ConfiguracoesPage() {
             />
           </div>
           <div>
-            <label style={labelStyles}>Fuso horario</label>
+            <label style={labelStyles}>Fuso horário</label>
             <select
               value={settings.timezone}
               onChange={(e) =>
@@ -530,7 +621,7 @@ export default function ConfiguracoesPage() {
             </select>
           </div>
           <div>
-            <label style={labelStyles}>Voz</label>
+            <label style={labelStyles}>Vozes dos hosts</label>
             <select
               value={settings.audio_voice}
               onChange={(e) =>
@@ -569,7 +660,7 @@ export default function ConfiguracoesPage() {
           {([
             { value: "dark", label: "Escuro", icon: <MoonIcon /> },
             { value: "light", label: "Claro", icon: <SunIcon /> },
-            { value: "auto", label: "Automatico", icon: <MonitorIcon /> },
+            { value: "auto", label: "Automático", icon: <MonitorIcon /> },
           ] as const).map((opt) => {
             const active = theme === opt.value;
             return (
@@ -819,7 +910,7 @@ export default function ConfiguracoesPage() {
           boxShadow: "var(--shadow-md)",
         }}
       >
-        {saving ? "Salvando..." : "Salvar configuracoes"}
+        {saving ? "Salvando..." : "Salvar configurações"}
       </button>
 
       {/* Responsive styles for grid */}

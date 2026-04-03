@@ -25,14 +25,25 @@ export async function digestsRoutes(app: FastifyInstance) {
   app.get("/api/digests/:id", async (request) => {
     const { id } = request.params as { id: string };
 
-    const { data } = await supabaseAdmin
+    const { data: digest } = await supabaseAdmin
       .from("digests")
       .select("*")
       .eq("id", id)
       .eq("user_id", request.userId)
       .single();
 
-    return { digest: data };
+    // Regenerate signed URL on-demand (expires after 24h)
+    if (digest?.audio_url) {
+      const audioPath = `digests/${request.userId}/${digest.job_id}.ogg`;
+      const { data: freshUrl } = await supabaseAdmin.storage
+        .from("podcasts")
+        .createSignedUrl(audioPath, 86400);
+      if (freshUrl?.signedUrl) {
+        digest.audio_url = freshUrl.signedUrl;
+      }
+    }
+
+    return { digest };
   });
 
   // Generate digest now (Pro+)
@@ -43,7 +54,9 @@ export async function digestsRoutes(app: FastifyInstance) {
     }
 
     // Check daily limit
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    const today = `${brt.getFullYear()}-${String(brt.getMonth() + 1).padStart(2, "0")}-${String(brt.getDate()).padStart(2, "0")}`;
     const { count } = await supabaseAdmin
       .from("digest_jobs")
       .select("*", { count: "exact", head: true })

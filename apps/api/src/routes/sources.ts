@@ -4,6 +4,7 @@ import { authMiddleware, getPlanLimits } from "../middleware/auth.js";
 import { redis } from "../lib/redis.js";
 import { execSync } from "child_process";
 import { readFileSync, unlinkSync, existsSync } from "fs";
+import { randomUUID } from "crypto";
 
 const UAZAPI_BASE = "https://loumarturismo.uazapi.com";
 const UAZAPI_ADMIN_TOKEN = process.env.UAZAPI_ADMIN_TOKEN || "";
@@ -230,7 +231,16 @@ export async function sourcesRoutes(app: FastifyInstance) {
     const limits = getPlanLimits(request.userPlan);
     const { count } = await supabaseAdmin.from("source_connections").select("*", { count: "exact", head: true }).eq("user_id", request.userId).eq("is_active", true);
     if ((count || 0) >= limits.maxSources) return reply.status(403).send({ error: "Limite atingido" });
-    const { data, error } = await supabaseAdmin.from("source_connections").insert({ user_id: request.userId, type, name, config, is_active: true }).select().single();
+
+    // For webhook sources, generate unique token and URL
+    const finalConfig = { ...config };
+    if (type === "webhook") {
+      const token = randomUUID();
+      finalConfig.webhook_token = token;
+      finalConfig.webhook_url = `${process.env.APP_API_URL || "https://api-podcastia.solutionprime.com.br"}/api/webhooks/source/${token}`;
+    }
+
+    const { data, error } = await supabaseAdmin.from("source_connections").insert({ user_id: request.userId, type, name, config: finalConfig, is_active: true }).select().single();
     if (error) return reply.status(400).send({ error: error.message });
     return { source: data };
   });
@@ -247,4 +257,102 @@ export async function sourcesRoutes(app: FastifyInstance) {
     const { data } = await supabaseAdmin.from("source_connections").update({ is_active: !current?.is_active }).eq("id", id).eq("user_id", request.userId).select().single();
     return { source: data };
   });
+
+  // ── File upload source ──
+  app.post("/api/sources/upload", async (request, reply) => {
+    const data = await request.file();
+    if (!data) return reply.status(400).send({ error: "Nenhum arquivo enviado" });
+
+    const limits = getPlanLimits(request.userPlan);
+    const { count } = await supabaseAdmin
+      .from("source_connections")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", request.userId)
+      .eq("is_active", true);
+    if ((count || 0) >= limits.maxSources)
+      return reply.status(403).send({ error: "Limite de fontes atingido" });
+
+    const buffer = await data.toBuffer();
+    const ext = data.filename?.split(".").pop() || "bin";
+    const fileName = `${request.userId}/${randomUUID()}.${ext}`;
+
+    // Upload to Supabase Storage
+    const { error: uploadErr } = await supabaseAdmin.storage
+      .from("uploads")
+      .upload(fileName, buffer, {
+        contentType: data.mimetype,
+        upsert: false,
+      });
+
+    if (uploadErr) return reply.status(500).send({ error: "Falha no upload: " + uploadErr.message });
+
+    // Process content based on file type
+    let extractedText = "";
+    const mime = data.mimetype || "";
+
+    if (mime === "application/pdf") {
+      try {
+        const pdfParse = (await import("pdf-parse")).default;
+        const result = await pdfParse(buffer);
+        extractedText = result.text?.slice(0, 50000) || "";
+      } catch (e: any) {
+        console.error("[Upload] PDF parse error:", e.message);
+        extractedText = `[PDF: ${data.filename}]`;
+      }
+    } else if (mime.startsWith("image/")) {
+      try {
+        const { GoogleGenerativeAI } = await import("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent([
+          "Descreva detalhadamente o conteudo desta imagem em portugues brasileiro. Extraia todo texto visivel.",
+          { inlineData: { mimeType: mime, data: buffer.toString("base64") } },
+        ]);
+        extractedText = result.response.text() || `[Imagem: ${data.filename}]`;
+      } catch (e: any) {
+        console.error("[Upload] Image analysis error:", e.message);
+        extractedText = `[Imagem: ${data.filename}]`;
+      }
+    } else if (mime.startsWith("text/")) {
+      extractedText = buffer.toString("utf-8").slice(0, 50000);
+    }
+
+    // Save as source connection
+    const { data: source, error: srcErr } = await supabaseAdmin
+      .from("source_connections")
+      .insert({
+        user_id: request.userId,
+        type: "file",
+        name: data.filename || "Arquivo",
+        config: {
+          file_path: fileName,
+          file_type: mime,
+          file_size: buffer.length,
+          original_name: data.filename,
+        },
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (srcErr) return reply.status(400).send({ error: srcErr.message });
+
+    // Save extracted content as captured message
+    if (extractedText) {
+      await supabaseAdmin.from("captured_messages").insert({
+        user_id: request.userId,
+        source_connection_id: source.id,
+        source_type: "file",
+        group_name: `Arquivo: ${data.filename}`,
+        sender_name: "Upload",
+        content: extractedText,
+        media_type: "text",
+        captured_at: new Date().toISOString(),
+        processed: false,
+      });
+    }
+
+    return { source, extracted: !!extractedText };
+  });
+
 }

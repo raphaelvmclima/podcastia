@@ -16,7 +16,6 @@ export default function ResumosPage() {
     setFetchError("");
     api("/api/digests?page=" + page + "&limit=20")
       .then((res) => {
-        console.log("Digests API response:", res);
         setDigests(res?.digests || []);
         setTotal(res?.total || 0);
       })

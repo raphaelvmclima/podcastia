@@ -15,5 +15,10 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@fastify/multipart": "^9.4.0",
+    "pdf-parse": "^2.4.5",
+    "youtube-transcript": "^1.3.0"
   }
 }
