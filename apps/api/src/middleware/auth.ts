@@ -37,10 +37,10 @@ const PLAN_LIMITS: Record<string, {
   maxAudioMinutes: number;
   channels: string[];
 }> = {
-  free: { maxSources: 1, maxDigestsPerDay: 1, maxAudioMinutes: 3, channels: ["email"] },
-  starter: { maxSources: 3, maxDigestsPerDay: 3, maxAudioMinutes: 8, channels: ["whatsapp", "email"] },
-  pro: { maxSources: 999, maxDigestsPerDay: 10, maxAudioMinutes: 20, channels: ["whatsapp", "telegram", "email"] },
-  business: { maxSources: 999, maxDigestsPerDay: 999, maxAudioMinutes: 30, channels: ["whatsapp", "telegram", "email", "webhook"] },
+  free: { maxSources: 3, maxDigestsPerDay: 1, maxAudioMinutes: 5, channels: [] },
+  starter: { maxSources: 5, maxDigestsPerDay: 1, maxAudioMinutes: 10, channels: ["whatsapp"] },
+  pro: { maxSources: 10, maxDigestsPerDay: 2, maxAudioMinutes: 20, channels: ["whatsapp", "email"] },
+  business: { maxSources: 999, maxDigestsPerDay: 3, maxAudioMinutes: 30, channels: ["whatsapp", "email", "telegram", "webhook"] },
 };
 
 export function getPlanLimits(plan: string) {

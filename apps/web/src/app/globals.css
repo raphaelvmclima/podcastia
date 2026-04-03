@@ -1259,8 +1259,9 @@ textarea {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
 }
 
 .dashboard-content {
@@ -3233,3 +3234,396 @@ textarea {
     max-width: 1200px;
   }
 }
+
+/* ============================================================
+   MOBILE FIX — Landing Page Responsive & Pricing UX
+   Added 2026-04-03
+   ============================================================ */
+
+/* ── Fix: Pricing card hover — ensure price always readable ── */
+
+/* Override the scale on hover to prevent text overlap issues */
+.lp-pricing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(139, 92, 246, 0.12);
+}
+
+/* Ensure pricing amount always has solid readable color */
+.lp-pricing-card .lp-pricing-amount {
+  color: var(--fg) !important;
+  position: relative;
+  z-index: 2;
+}
+
+.lp-pricing-card .lp-pricing-currency,
+.lp-pricing-card .lp-pricing-period {
+  position: relative;
+  z-index: 2;
+}
+
+/* Fix the glow border: add inner background so text is never behind gradient */
+.lp-pricing-card.featured {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.lp-pricing-glow-border {
+  opacity: 0.6;
+}
+
+.lp-pricing-card.featured:hover .lp-pricing-glow-border {
+  opacity: 0.8;
+}
+
+/* Ensure all pricing card content is above the glow */
+.lp-pricing-card > h3,
+.lp-pricing-card > .lp-pricing-desc,
+.lp-pricing-card > .lp-pricing-price,
+.lp-pricing-card > .lp-pricing-features,
+.lp-pricing-card > .lp-pricing-badge,
+.lp-pricing-card > .btn {
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Fix: Mobile responsive (max-width: 768px) ── */
+@media (max-width: 768px) {
+  /* Global: prevent horizontal overflow */
+  html, body {
+    overflow-x: hidden;
+  }
+
+  .lp {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* Header: ensure proper spacing */
+  .lp-header-inner {
+    padding: 10px 16px;
+    gap: 8px;
+  }
+
+  /* Hero: reduce spacing and font sizes */
+  .lp-hero {
+    padding: clamp(2rem, 6vw, 4rem) 16px clamp(1.5rem, 4vw, 3rem);
+    gap: 16px;
+  }
+
+  .lp-hero-title {
+    font-size: clamp(2rem, 8vw, 3rem);
+    letter-spacing: -0.03em;
+  }
+
+  .lp-hero-sub {
+    font-size: var(--text-sm);
+    max-width: 100%;
+    line-height: 1.6;
+  }
+
+  .lp-hero-ctas {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .lp-hero-ctas .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+    font-size: var(--text-base);
+  }
+
+  .lp-hero-note {
+    font-size: 11px;
+  }
+
+  /* Stats: stack vertically */
+  .lp-stats {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 24px;
+    width: 100%;
+  }
+
+  .lp-stat-sep {
+    width: 48px;
+    height: 1px;
+  }
+
+  .lp-stat-val {
+    font-size: var(--text-lg);
+  }
+
+  /* Sections: tighter padding on mobile */
+  .lp-section {
+    padding: clamp(2rem, 5vw, 3.5rem) 16px;
+  }
+
+  .lp-section-title {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+    line-height: 1.25;
+  }
+
+  .lp-section-sub {
+    font-size: var(--text-sm);
+    margin-bottom: 24px;
+  }
+
+  /* All grids: 1 column on mobile */
+  .lp-problem-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .lp-steps {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  .lp-sources-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .lp-features-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .lp-testimonials {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .lp-pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 24px;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .lp-themes-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 24px;
+  }
+
+  /* Card padding reductions */
+  .lp-problem-card,
+  .lp-feature-card {
+    padding: 16px;
+  }
+
+  .lp-step {
+    padding: 20px 16px;
+  }
+
+  .lp-testimonial {
+    padding: 18px;
+  }
+
+  .lp-pricing-card {
+    padding: 22px 18px;
+  }
+
+  .lp-source-card {
+    padding: 14px 16px;
+  }
+
+  /* Themes: hide description on mobile */
+  .lp-theme-desc {
+    display: none;
+  }
+
+  .lp-theme-card {
+    padding: 14px 10px;
+  }
+
+  .lp-theme-icon {
+    font-size: 1.5rem;
+  }
+
+  /* FAQ: touch-friendly */
+  .lp-faq-item {
+    padding: 14px 16px;
+  }
+
+  .lp-faq-q {
+    min-height: 44px;
+    font-size: var(--text-sm);
+  }
+
+  /* CTA: mobile spacing */
+  .lp-cta-section {
+    padding: clamp(2rem, 5vw, 3.5rem) 16px;
+  }
+
+  .lp-cta-inner h2 {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+  }
+
+  .lp-cta-inner .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+    font-size: var(--text-base);
+  }
+
+  /* Footer: stack vertically */
+  .lp-footer {
+    padding: 28px 16px 16px;
+  }
+
+  .lp-footer-inner {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .lp-footer-brand {
+    max-width: 100%;
+  }
+
+  .lp-footer-links {
+    gap: 24px;
+  }
+
+  /* Waveform: smaller */
+  .lp-waveform {
+    gap: 2px;
+    height: 40px;
+  }
+
+  .lp-waveform-bar {
+    width: 3px;
+  }
+
+  /* Pricing: ensure price is readable on hover (no scale) */
+  .lp-pricing-card:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Touch targets: minimum 44px for all interactive elements */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .lp-hamburger,
+  .theme-toggle {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .lp-nav a:not(.btn) {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Scroll top button: above any bottom content */
+  .lp-scroll-top {
+    bottom: 24px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Demo player: tighter on mobile */
+  .lp-demo-player {
+    max-width: 100%;
+  }
+
+  .lp-demo-player-inner {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .lp-demo-play-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ── Fix: Very small mobile (max-width: 380px) ── */
+@media (max-width: 380px) {
+  .lp-hero-title {
+    font-size: clamp(1.75rem, 10vw, 2.5rem);
+  }
+
+  .lp-header-inner {
+    padding: 8px 12px;
+  }
+
+  .lp-stats {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .lp-stat-val {
+    font-size: var(--text-base);
+  }
+
+  .lp-themes-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .lp-theme-card {
+    padding: 12px 8px;
+  }
+
+  .lp-theme-name {
+    font-size: 11px;
+  }
+
+  .lp-pricing-grid {
+    max-width: 100%;
+  }
+
+  .lp-section {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .lp-cta-section {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* ── Fix: iOS Safari smooth scroll ── */
+@supports (-webkit-touch-callout: none) {
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ── Fix: Source badge "Em breve" style ── */
+.lp-badge-soon {
+  color: var(--fg-faint);
+  background: var(--bg-tertiary);
+}
+
+/* ── Fix: Pricing featured card — ensure inner bg covers glow ── */
+.lp-pricing-card.featured > * {
+  position: relative;
+  z-index: 2;
+}
+
+.lp-pricing-card.featured::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(var(--radius-xl) - 1px);
+  background: var(--glass-bg);
+  z-index: 1;
+}
+

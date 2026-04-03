@@ -9,6 +9,7 @@ export default function DashboardPage() {
   const [sources, setSources] = useState<any[]>([]);
   const [digests, setDigests] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
+  const [digestTotal, setDigestTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function DashboardPage() {
       setUser(me?.user || null);
       setSources(src?.sources || []);
       setDigests(dig?.digests || []);
+      setDigestTotal(dig?.total || 0);
       setSettings(set?.settings || null);
       setLoading(false);
     });
@@ -48,7 +50,7 @@ export default function DashboardPage() {
 
   const statCards = [
     { label: "Fontes ativas", value: activeSources, sub: "conectadas" },
-    { label: "Resumos gerados", value: digests.length > 0 ? digests.length + "+" : "0", sub: "total" },
+    { label: "Resumos gerados", value: digestTotal, sub: "total" },
     { label: "Plano atual", value: plan, sub: "ativo" },
     { label: "Próximo resumo", value: nextTime, sub: "agendado" },
   ];

@@ -9,6 +9,10 @@
 import { fetchRSSContent } from './rss-processor.js';
 import { fetchYouTubeContent } from './youtube-processor.js';
 import { fetchNewsForTopics } from './news-fetcher.js';
+import { fetchCRMContent } from './crm-processor.js';
+import { fetchFlightsContent } from './flights-processor.js';
+import { fetchCalendarContent } from './calendar-processor.js';
+import { fetchPricesContent } from './prices-processor.js';
 
 export interface SourceConfig {
   type: string;
@@ -45,6 +49,10 @@ const SOURCE_TYPE_NAMES: Record<string, string> = {
   email: 'Email',
   http_request: 'HTTP Request',
   webhook: 'Webhook',
+  crm: 'CRM',
+  passagens: 'Passagens',
+  google_calendar: 'Agenda',
+  google_shopping: 'Precos',
 };
 
 /** Per-source-type timeout in ms */
@@ -53,6 +61,10 @@ const SOURCE_TIMEOUTS: Record<string, number> = {
   youtube: 60000,   // YouTube/Gemini can be slow
   news: 45000,      // Multiple parallel fetches
   http_request: 30000,
+  crm: 30000,
+  passagens: 30000,
+  google_calendar: 20000,
+  google_shopping: 45000,  // Multiple Google Shopping searches
 };
 
 const DEFAULT_TIMEOUT = 30000;
@@ -157,6 +169,83 @@ export async function fetchSourceContent(source: SourceConfig): Promise<Captured
         // Webhook is push-based — content arrives via the webhook endpoint,
         // not via polling. Nothing to fetch here.
         return [];
+      }
+
+      case 'crm': {
+        const provider = source.config.provider || 'custom';
+        const apiUrl = source.config.apiUrl || source.config.url || '';
+        const apiToken = source.config.apiToken || '';
+        if (!apiUrl) {
+          console.error(`[source-fetcher] CRM source "${sourceName}" missing apiUrl in config`);
+          return [];
+        }
+        const crmItems = await withTimeout(
+          fetchCRMContent({ provider, apiUrl, apiToken, filters: source.config.filters }),
+          timeoutMs,
+          `CRM: ${sourceName}`
+        );
+        result = crmItems.map(item => ({
+          sender: item.sender,
+          content: item.content,
+          group_name: item.group_name,
+        }));
+        break;
+      }
+
+      case 'passagens': {
+        const feedUrls = source.config.feedUrls || [];
+        const keywords = source.config.keywords || [];
+        const origins = source.config.origins || [];
+        const destinations = source.config.destinations || [];
+        const flightItems = await withTimeout(
+          fetchFlightsContent({ feedUrls, keywords, origins, destinations }),
+          timeoutMs,
+          `Flights: ${sourceName}`
+        );
+        result = flightItems.map(item => ({
+          sender: item.sender,
+          content: item.content,
+          group_name: item.group_name,
+        }));
+        break;
+      }
+
+      case 'google_calendar': {
+        const icalUrl = source.config.icalUrl || source.config.url || '';
+        if (!icalUrl) {
+          console.error(`[source-fetcher] Calendar source "${sourceName}" missing icalUrl in config`);
+          return [];
+        }
+        const calItems = await withTimeout(
+          fetchCalendarContent({ icalUrl }),
+          timeoutMs,
+          `Calendar: ${sourceName}`
+        );
+        result = calItems.map(item => ({
+          sender: item.sender,
+          content: item.content,
+          group_name: item.group_name,
+        }));
+        break;
+      }
+
+      case 'google_shopping': {
+        const products = source.config.products || [];
+        if (products.length === 0) {
+          console.error(`[source-fetcher] Prices source "${sourceName}" missing products in config`);
+          return [];
+        }
+        const priceItems = await withTimeout(
+          fetchPricesContent({ products, region: source.config.region, feedUrls: source.config.feedUrls }),
+          timeoutMs,
+          `Prices: ${sourceName}`
+        );
+        result = priceItems.map(item => ({
+          sender: item.sender,
+          content: item.content,
+          group_name: item.group_name,
+        }));
+        break;
       }
 
       case 'instagram':

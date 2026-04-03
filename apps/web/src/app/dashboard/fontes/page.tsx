@@ -189,7 +189,7 @@ const SOURCE_TYPES = [
     desc: "Monitore preços por destino",
     color: "#0EA5E9",
     bg: "rgba(14, 165, 233, 0.12)",
-    status: "soon",
+    status: "active",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
@@ -199,10 +199,10 @@ const SOURCE_TYPES = [
   {
     id: "crm",
     name: "CRM",
-    desc: "Integre seu CRM (HubSpot, Pipedrive)",
+    desc: "Integre seu CRM (HubSpot, FlwChat)",
     color: "#F97316",
     bg: "rgba(249, 115, 22, 0.12)",
-    status: "soon",
+    status: "active",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -215,7 +215,7 @@ const SOURCE_TYPES = [
     desc: "Resumo de compromissos e reuniões",
     color: "#4285F4",
     bg: "rgba(66, 133, 244, 0.12)",
-    status: "soon",
+    status: "active",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>
@@ -224,11 +224,11 @@ const SOURCE_TYPES = [
   },
   {
     id: "google_shopping",
-    name: "Preços de Produtos",
-    desc: "Monitore preços em lojas online",
+    name: "Precos de Produtos",
+    desc: "Monitore precos em lojas online",
     color: "#EA4335",
     bg: "rgba(234, 67, 53, 0.12)",
-    status: "soon",
+    status: "active",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
@@ -259,9 +259,27 @@ const FORM_FIELDS: Record<string, FormField[]> = {
     { key: "body", label: "Body (JSON)", placeholder: '{"key": "value"}', type: "textarea", optional: true },
   ],
   webhook: [],
+  crm: [
+    { key: "provider", label: "Provedor CRM", placeholder: "flw", type: "select", options: ["flw", "hubspot", "custom"] },
+    { key: "apiUrl", label: "URL da API", placeholder: "https://api.flw.chat" },
+    { key: "apiToken", label: "Token da API", placeholder: "seu-token-aqui", type: "password" },
+    { key: "filters", label: "Filtros (opcional)", placeholder: "departamento, status...", optional: true },
+  ],
+  passagens: [
+    { key: "keywords", label: "Destinos ou palavras-chave (separados por virgula)", placeholder: "Lisboa, Orlando, Paris" },
+    { key: "feedUrls", label: "URLs de feeds RSS (opcional, um por linha)", placeholder: "https://www.melhoresdestinos.com.br/feed", type: "textarea", optional: true },
+  ],
+  google_calendar: [
+    { key: "icalUrl", label: "URL do calendario iCal (.ics)", placeholder: "https://calendar.google.com/calendar/ical/...@group.calendar.google.com/public/basic.ics" },
+  ],
+  google_shopping: [
+    { key: "products", label: "Produtos para monitorar (separados por virgula)", placeholder: "iPhone 15 Pro, MacBook Air M3, Galaxy S24" },
+    { key: "region", label: "Regiao (opcional)", placeholder: "Brasil", optional: true },
+    { key: "feedUrls", label: "URLs de feeds de promocoes (opcional, um por linha)", placeholder: "https://www.promobit.com.br/feed", type: "textarea", optional: true },
+  ],
 };
 
-const COMING_SOON = new Set(["instagram", "twitter", "telegram", "email", "passagens", "crm", "google_calendar", "google_shopping"]);
+const COMING_SOON = new Set(["instagram", "twitter", "telegram", "email"]);
 
 export default function FontesPage() {
   const [sources, setSources] = useState<Source[]>([]);
@@ -415,9 +433,19 @@ export default function FontesPage() {
 
     setSaving(true);
     try {
+      // Transform config for source types that need arrays
+      const finalConfig: Record<string, any> = { ...formConfig };
+      if (activePanel === "passagens") {
+        if (finalConfig.keywords) finalConfig.keywords = finalConfig.keywords.split(",").map((s: string) => s.trim()).filter(Boolean);
+        if (finalConfig.feedUrls) finalConfig.feedUrls = finalConfig.feedUrls.split("\n").map((s: string) => s.trim()).filter(Boolean);
+      }
+      if (activePanel === "google_shopping") {
+        if (finalConfig.products) finalConfig.products = finalConfig.products.split(",").map((s: string) => s.trim()).filter(Boolean);
+        if (finalConfig.feedUrls) finalConfig.feedUrls = finalConfig.feedUrls.split("\n").map((s: string) => s.trim()).filter(Boolean);
+      }
       const res = await api("/api/sources", {
         method: "POST",
-        body: JSON.stringify({ type: activePanel, name: formName, config: formConfig }),
+        body: JSON.stringify({ type: activePanel, name: formName, config: finalConfig }),
       });
       setActivePanel(null);
       setShowTypeSelector(false);

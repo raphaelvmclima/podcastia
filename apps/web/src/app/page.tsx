@@ -146,10 +146,10 @@ const podcastThemes = [
 ];
 
 const plans = [
-  { name: "Free", price: "0", desc: "Para experimentar", features: ["1 fonte", "1 resumo/dia", "Voz padrao", "Entrega no app"], cta: "Começar grátis", featured: false },
-  { name: "Starter", price: "49", desc: "Uso pessoal", features: ["5 fontes", "3 resumos/dia", "2 vozes premium", "WhatsApp + Email", "Histórico 30 dias", "Upload de arquivos"], cta: "Assinar Starter", featured: false },
-  { name: "Pro", price: "149", desc: "Para profissionais", features: ["20 fontes", "Ilimitado", "Todas as vozes", "Todos os canais", "Histórico ilimitado", "Todos os estilos", "Upload ilimitado", "Suporte prioritário"], cta: "Assinar Pro", featured: true, badge: "Mais popular" },
-  { name: "Business", price: "499", desc: "Equipes e empresas", features: ["Fontes ilimitadas", "Ilimitado", "Vozes premium", "API de integração", "Multi-usuários", "Suporte dedicado", "Onboarding"], cta: "Falar com vendas", featured: false },
+  { name: "Gratuito", price: "0", desc: "Para experimentar", features: ["1 podcast/dia", "3 fontes", "Voz padrão", "Entrega no app", "Histórico 7 dias"], cta: "Começar grátis", featured: false },
+  { name: "Starter", price: "69", desc: "Uso pessoal", features: ["1 podcast/dia", "5 fontes", "2 vozes premium", "WhatsApp", "Histórico 30 dias", "Upload de arquivos"], cta: "Assinar Starter", featured: false },
+  { name: "Pro", price: "149", desc: "Para profissionais", features: ["2 podcasts/dia", "10 fontes", "Todas as vozes", "WhatsApp + Email", "Histórico ilimitado", "Todos os estilos", "Temas premium", "Suporte prioritário"], cta: "Assinar Pro", featured: true, badge: "Mais popular" },
+  { name: "Business", price: "299", desc: "Equipes e empresas", features: ["3 podcasts/dia", "Fontes ilimitadas", "Todas as vozes", "Todos os canais", "API de integração", "Multi-usuários", "Suporte dedicado", "Onboarding"], cta: "Falar com vendas", featured: false },
 ];
 
 const faqs = [
