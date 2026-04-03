@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 
 type ThemeMode = "dark" | "light" | "auto";
@@ -34,12 +35,25 @@ function resolveTheme(mode: ThemeMode): ResolvedTheme {
   return mode;
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+const themeScript = `
+(function() {
+  try {
+    var stored = localStorage.getItem('theme');
+    var mode = (stored === 'dark' || stored === 'light') ? stored : null;
+    if (!mode) {
+      var h = new Date().getHours();
+      mode = (h >= 18 || h < 6) ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', mode);
+  } catch(e) {}
+})();
+`;
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>("auto");
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("dark");
   const [mounted, setMounted] = useState(false);
 
-  // Read from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem("theme") as ThemeMode | null;
     const mode = stored && ["dark", "light", "auto"].includes(stored) ? stored : "auto";
@@ -50,7 +64,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  // Update auto theme every minute
   useEffect(() => {
     if (theme !== "auto") return;
     const interval = setInterval(() => {
@@ -74,17 +87,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [theme, setTheme, resolvedTheme]
   );
 
-  // Prevent flash of wrong theme
-  if (!mounted) {
-    return (
-      <ThemeContext.Provider value={value}>
-        <div style={{ visibility: "hidden" }}>{children}</div>
-      </ThemeContext.Provider>
-    );
-  }
-
   return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>
+      <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      {mounted ? children : <div style={{ visibility: "hidden" }}>{children}</div>}
+    </ThemeContext.Provider>
   );
 }
 

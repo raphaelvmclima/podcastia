@@ -12,8 +12,42 @@ interface DigestJobData {
   userId: string;
 }
 
+/** Helper: retry an async fn with delay between attempts */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  label: string,
+  maxRetries: number = 2,
+  delayMs: number = 3000
+): Promise<T> {
+  let lastErr: Error | null = null;
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      if (attempt <= maxRetries) {
+        console.warn(`[Worker] ${label} attempt ${attempt} failed: ${err.message} — retrying in ${delayMs}ms...`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastErr!;
+}
+
+/** Helper: generate a 2-line content summary from the script */
+function generateContentSummary(script: string, groups: { groupName: string; messages: any[] }[]): string {
+  const topicNames = groups.map((g) => g.groupName).slice(0, 5);
+  // Extract first substantive line from each host
+  const lines = script.split("\n").filter((l) => l.trim().length > 20);
+  const isaLine = lines.find((l) => l.startsWith("Isa:"));
+  const leoLine = lines.find((l) => l.startsWith("Leo:"));
+  const snippet = (isaLine || leoLine || lines[0] || "").replace(/^(Isa|Leo):\s*/, "").slice(0, 120);
+  return `Fontes: ${topicNames.join(", ")}. ${snippet}...`;
+}
+
 async function processDigest(job: Job<DigestJobData>) {
   const { jobId, userId } = job.data;
+  const t0 = Date.now();
   console.log(`[Worker] Processing digest job ${jobId} for user ${userId}`);
 
   const { error: updateErr } = await supabaseAdmin
@@ -53,6 +87,7 @@ async function processDigest(job: Job<DigestJobData>) {
     }
 
     // 3. Fetch content from non-WhatsApp sources (RSS, YouTube, News, etc.)
+    const tFetch = Date.now();
     const { data: allSources } = await supabaseAdmin
       .from("source_connections")
       .select("*")
@@ -108,6 +143,7 @@ async function processDigest(job: Job<DigestJobData>) {
         }
       }
     }
+    console.log(`[Worker][TIMING] Source fetch: ${Date.now() - tFetch}ms`);
 
     // 4. Get ALL unprocessed messages (WhatsApp + freshly fetched)
     const { data: messages } = await supabaseAdmin
@@ -166,6 +202,7 @@ async function processDigest(job: Job<DigestJobData>) {
     const maxChars = plan === "business" ? 7000 : plan === "pro" ? 5000 : 3000;
 
     // 6. Generate script via GPT
+    const tScript = Date.now();
     console.log(`[Worker] Generating script for ${messages.length} messages across ${groups.length} groups (plan: ${plan}, maxChars: ${maxChars})`);
     const script = await generatePodcastScript(
       groups,
@@ -175,14 +212,23 @@ async function processDigest(job: Job<DigestJobData>) {
       userContext,
       settings?.podcast_theme || "conversa"
     );
+    console.log(`[Worker][TIMING] Script generation: ${Date.now() - tScript}ms (${script.length} chars)`);
+
+    // 6b. Generate content summary (2-line overview)
+    const contentSummary = generateContentSummary(script, groups);
+    console.log(`[Worker] Content summary: ${contentSummary}`);
 
     // 7. Generate audio via Gemini TTS + ffmpeg
+    const tTTS = Date.now();
     console.log(`[Worker] Generating audio...`);
     const theme = settings?.podcast_theme || "conversa";
     const { audioPath, duration } = await generateAudio(script, {
       speaker1Voice: settings?.audio_voice || "Sadachbia",
     }, theme);
+    console.log(`[Worker][TIMING] TTS generation: ${Date.now() - tTTS}ms (duration: ${duration}s)`);
+
     // 8. Upload to Supabase Storage
+    const tUpload = Date.now();
     const audioB64 = audioToBase64(audioPath);
     const audioBuffer = Buffer.from(audioB64, "base64");
     const audioFileName = `digests/${userId}/${jobId}.ogg`;
@@ -194,6 +240,7 @@ async function processDigest(job: Job<DigestJobData>) {
     if (storageErr) throw new Error(`Storage upload failed: ${storageErr.message}`);
 
     const { data: signedUrl } = await supabaseAdmin.storage.from("podcasts").createSignedUrl(audioFileName, 86400);
+    console.log(`[Worker][TIMING] Upload to storage: ${Date.now() - tUpload}ms`);
 
     const themeLabels: Record<string, string> = {
       conversa: "Conversa do dia",
@@ -208,7 +255,8 @@ async function processDigest(job: Job<DigestJobData>) {
       motivacional: "Motivacional do dia",
     };
     const digestTitle = `${themeLabels[theme] || "Resumo do dia"} - ${new Date().toLocaleDateString("pt-BR")}`;
-    // 9. Save digest
+
+    // 9. Save digest (now with content_summary)
     const { data: digest } = await supabaseAdmin
       .from("digests")
       .insert({
@@ -216,6 +264,7 @@ async function processDigest(job: Job<DigestJobData>) {
         job_id: jobId,
         title: digestTitle,
         text_content: script,
+        content_summary: contentSummary,
         audio_url: signedUrl?.signedUrl || "",
         audio_duration_seconds: duration,
         sources_summary: {
@@ -226,21 +275,33 @@ async function processDigest(job: Job<DigestJobData>) {
       .select()
       .single();
 
-    // 10. Deliver via WhatsApp
+    // 10. Deliver via WhatsApp (with retry logic for flaky UAZAPI)
     if (settings?.delivery_channel === "whatsapp" && deliveryNumber && instanceToken) {
-      const themeEmojis: Record<string, string> = { conversa: "💬", aula: "🎓", jornalistico: "📰", resumo: "📋", comentarios: "🗣️", storytelling: "📖", estudo_biblico: "📕", debate: "⚔️", entrevista: "🎤", motivacional: "🔥" };
-      const themeEmoji = themeEmojis[theme] || "🎙";
-      const callText = `${themeEmoji} *PodcastIA* — ${themeLabels[theme] || "Seu resumo"} chegou!
+      const tDeliver = Date.now();
+      const themeEmojis: Record<string, string> = { conversa: "\uD83D\uDCAC", aula: "\uD83C\uDF93", jornalistico: "\uD83D\uDCF0", resumo: "\uD83D\uDCCB", comentarios: "\uD83D\uDDE3\uFE0F", storytelling: "\uD83D\uDCD6", estudo_biblico: "\uD83D\uDCD5", debate: "\u2694\uFE0F", entrevista: "\uD83C\uDF99\uFE0F", motivacional: "\uD83D\uDD25" };
+      const themeEmoji = themeEmojis[theme] || "\uD83C\uDF99";
+      const callText = `${themeEmoji} *PodcastIA* \u2014 ${themeLabels[theme] || "Seu resumo"} chegou!
 
-📊 ${messages.length} mensagens de ${groups.length} fonte(s)
-⏱ Duração: ${Math.floor(duration / 60)}min ${duration % 60}s
+\uD83D\uDCCA ${messages.length} mensagens de ${groups.length} fonte(s)
+\u23F1 Dura\u00E7\u00E3o: ${Math.floor(duration / 60)}min ${duration % 60}s
 
-Ouça agora:`;
+${contentSummary}
 
-      await sendWhatsAppText(deliveryNumber, callText, instanceToken);
-      await sendWhatsAppAudio(deliveryNumber, audioB64, instanceToken);
+Ou\u00E7a agora:`;
+
+      await withRetry(
+        () => sendWhatsAppText(deliveryNumber, callText, instanceToken),
+        "WhatsApp text delivery",
+        2, 3000
+      );
+      await withRetry(
+        () => sendWhatsAppAudio(deliveryNumber, audioB64, instanceToken),
+        "WhatsApp audio delivery",
+        2, 3000
+      );
 
       await supabaseAdmin.from("digests").update({ delivered_at: new Date().toISOString() }).eq("id", digest?.id);
+      console.log(`[Worker][TIMING] WhatsApp delivery: ${Date.now() - tDeliver}ms`);
     }
 
     // 11. Mark messages as processed
@@ -255,10 +316,12 @@ Ouça agora:`;
       .update({ status: "done", completed_at: new Date().toISOString(), sources_used: { messageCount: messages.length, groupCount: groups.length } })
       .eq("id", jobId);
 
-    try { unlinkSync(audioPath); } catch (err: any) { console.error(`[Worker] Failed to resolve delivery number via UAZAPI:`, err.message); }
-    console.log(`[Worker] Digest ${jobId} completed! Duration: ${duration}s, delivered to ${deliveryNumber}`);
+    try { unlinkSync(audioPath); } catch (err: any) { console.error(`[Worker] Failed to cleanup audio file:`, err.message); }
+
+    const totalTime = Date.now() - t0;
+    console.log(`[Worker] Digest ${jobId} completed! Total: ${totalTime}ms (${(totalTime / 1000).toFixed(1)}s), Duration: ${duration}s, delivered to ${deliveryNumber}`);
   } catch (err: any) {
-    console.error(`[Worker] Digest ${jobId} failed:`, err);
+    console.error(`[Worker] Digest ${jobId} failed after ${Date.now() - t0}ms:`, err);
     await supabaseAdmin.from("digest_jobs").update({ status: "failed", error_message: err.message }).eq("id", jobId);
     throw err;
   }

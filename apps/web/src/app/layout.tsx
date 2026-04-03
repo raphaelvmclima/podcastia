@@ -10,10 +10,31 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PodcastIA - Resumos inteligentes por IA",
+  title: {
+    default: "PodcastIA - Resumos inteligentes por IA",
+    template: "%s | PodcastIA",
+  },
   description:
-    "Receba resumos em áudio das suas fontes favoritas. WhatsApp, Instagram, notícias e muito mais transformados em podcasts personalizados.",
+    "Receba resumos em audio das suas fontes favoritas. WhatsApp, Instagram, noticias e muito mais transformados em podcasts personalizados por inteligencia artificial.",
   manifest: "/manifest.json",
+  metadataBase: new URL("https://podcastia.solutionprime.com.br"),
+  openGraph: {
+    title: "PodcastIA - Resumos inteligentes por IA",
+    description: "Seus grupos e noticias em um podcast diario gerado por IA.",
+    url: "https://podcastia.solutionprime.com.br",
+    siteName: "PodcastIA",
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "PodcastIA - Resumos inteligentes por IA",
+    description: "Seus grupos e noticias em um podcast diario gerado por IA.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -27,8 +48,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#09090b" },

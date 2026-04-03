@@ -3,6 +3,8 @@
  * Fetches recent news articles for given keywords and topics.
  * Uses Google News search and Brazilian news RSS feeds as fallback.
  * Only built-in Node.js APIs (fetch).
+ *
+ * Features: deduplication, source diversity, proper error handling, timeout.
  */
 
 export interface NewsItem {
@@ -89,7 +91,6 @@ async function fetchGoogleNews(query: string): Promise<NewsItem[]> {
     const results: NewsItem[] = [];
 
     // Google News results pattern: extract title and snippet blocks
-    // Match div blocks containing news results with role="heading" or similar structures
     const titleRegex = /role="heading"[^>]*>([\s\S]*?)<\//g;
     const titles: string[] = [];
     let match: RegExpExecArray | null;
@@ -202,16 +203,22 @@ async function fetchFromRSSFeed(feedUrl: string, keywords: string[], sourceName:
 /**
  * Deduplicate news items by title similarity.
  * Items with >60% word overlap are considered duplicates.
+ * Prefers items with longer content.
  */
 function deduplicateNews(items: NewsItem[]): NewsItem[] {
   const unique: NewsItem[] = [];
 
   for (const item of items) {
-    const isDuplicate = unique.some(existing =>
+    const duplicateIdx = unique.findIndex(existing =>
       titleSimilarity(existing.title, item.title) > 0.6
     );
-    if (!isDuplicate) {
+    if (duplicateIdx === -1) {
       unique.push(item);
+    } else {
+      // Keep the version with more content
+      if (item.content.length > unique[duplicateIdx].content.length) {
+        unique[duplicateIdx] = item;
+      }
     }
   }
 
@@ -219,9 +226,45 @@ function deduplicateNews(items: NewsItem[]): NewsItem[] {
 }
 
 /**
+ * Ensure source diversity — no single source dominates > 50% of results.
+ * Re-orders items to interleave sources.
+ */
+function ensureSourceDiversity(items: NewsItem[], maxPerSource: number): NewsItem[] {
+  const bySource: Record<string, NewsItem[]> = {};
+  for (const item of items) {
+    const src = item.source || 'unknown';
+    if (!bySource[src]) bySource[src] = [];
+    bySource[src].push(item);
+  }
+
+  // Cap each source
+  for (const src of Object.keys(bySource)) {
+    bySource[src] = bySource[src].slice(0, maxPerSource);
+  }
+
+  // Interleave: round-robin across sources
+  const result: NewsItem[] = [];
+  const sources = Object.keys(bySource);
+  let added = true;
+  let round = 0;
+  while (added) {
+    added = false;
+    for (const src of sources) {
+      if (round < bySource[src].length) {
+        result.push(bySource[src][round]);
+        added = true;
+      }
+    }
+    round++;
+  }
+
+  return result;
+}
+
+/**
  * Fetch news articles for given keywords and topics.
  * Combines Google News search with Brazilian news RSS feeds.
- * Returns top 10 unique results.
+ * Returns top 20 unique, source-diverse results.
  * Returns empty array on error.
  */
 export async function fetchNewsForTopics(
@@ -240,10 +283,11 @@ export async function fetchNewsForTopics(
     // Sample up to 8 diverse search terms (prioritize topics, then keywords)
     const topicTerms = topics.filter(Boolean).slice(0, 5);
     const keywordTerms = keywords.filter(Boolean).filter(k => !topicTerms.includes(k));
-    // Pick remaining slots from keywords, spread evenly
     const kwStep = Math.max(1, Math.floor(keywordTerms.length / (8 - topicTerms.length)));
     const sampledKw = keywordTerms.filter((_, i) => i % kwStep === 0).slice(0, 8 - topicTerms.length);
     const diverseTerms = [...topicTerms, ...sampledKw].slice(0, 8);
+
+    console.log(`[news-fetcher] Fetching news for ${diverseTerms.length} terms: ${diverseTerms.join(', ')}`);
 
     // Fetch from Google News for each search term (in parallel)
     const googlePromises = diverseTerms.map(term => fetchGoogleNews(term));
@@ -255,15 +299,27 @@ export async function fetchNewsForTopics(
 
     const results = await Promise.allSettled([...googlePromises, ...rssPromises]);
 
+    let successCount = 0;
+    let failCount = 0;
     for (const result of results) {
       if (result.status === 'fulfilled') {
         allItems.push(...result.value);
+        successCount++;
+      } else {
+        failCount++;
       }
     }
 
-    // Deduplicate and return top results (up to 20 for deeper podcasts)
+    console.log(`[news-fetcher] Fetched ${allItems.length} raw items (${successCount} sources OK, ${failCount} failed)`);
+
+    // Deduplicate
     const unique = deduplicateNews(allItems);
-    return unique.slice(0, 20);
+    console.log(`[news-fetcher] After dedup: ${unique.length} unique items (removed ${allItems.length - unique.length} duplicates)`);
+
+    // Ensure source diversity (max 8 per source out of 20 total)
+    const diverse = ensureSourceDiversity(unique, 8);
+
+    return diverse.slice(0, 20);
   } catch (error: any) {
     console.error('[news-fetcher] Unexpected error:', error.message);
     return [];

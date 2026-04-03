@@ -1,7 +1,7 @@
 {
-  "name": "PodcastIA",
+  "name": "PodcastIA - Resumos inteligentes por IA",
   "short_name": "PodcastIA",
-  "description": "Seus grupos e notícias em um podcast diário gerado por IA",
+  "description": "Seus grupos e noticias em um podcast diario gerado por IA",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
@@ -13,47 +13,17 @@
   "categories": ["productivity", "news", "entertainment"],
   "prefer_related_applications": false,
   "handle_links": "preferred",
+  "id": "/",
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    {
-      "name": "Fontes",
-      "url": "/dashboard/fontes",
-      "description": "Gerenciar fontes"
-    },
-    {
-      "name": "Resumos",
-      "url": "/dashboard/resumos",
-      "description": "Ver resumos"
-    },
-    {
-      "name": "Notícias",
-      "url": "/dashboard/noticias",
-      "description": "Configurar notícias"
-    }
+    { "name": "Fontes", "url": "/dashboard/fontes", "description": "Gerenciar fontes" },
+    { "name": "Resumos", "url": "/dashboard/resumos", "description": "Ver resumos" },
+    { "name": "Noticias", "url": "/dashboard/noticias", "description": "Configurar noticias" },
+    { "name": "Configuracoes", "url": "/dashboard/configuracoes", "description": "Ajustar configuracoes" }
   ]
 }

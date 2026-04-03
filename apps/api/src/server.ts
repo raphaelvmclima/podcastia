@@ -13,15 +13,29 @@ import { startScheduler } from "./services/scheduler.js";
 
 const app = Fastify({ logger: true, bodyLimit: 50 * 1024 * 1024 });
 
-// CORS
+// CORS — allow production frontend + localhost for dev
 await app.register(cors, {
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  origin: true,
+  origin: [
+    "https://podcastia.solutionprime.com.br",
+    "http://localhost:5173",
+    "http://localhost:3000",
+  ],
   credentials: true,
 });
 
 // Multipart (file uploads)
 await app.register(multipart, { limits: { fileSize: 50 * 1024 * 1024 } });
+
+// Request timing log
+app.addHook("onResponse", (request, reply, done) => {
+  const duration = reply.elapsedTime;
+  request.log.info(
+    { method: request.method, url: request.url, statusCode: reply.statusCode, durationMs: Math.round(duration) },
+    `${request.method} ${request.url} -> ${reply.statusCode} (${Math.round(duration)}ms)`
+  );
+  done();
+});
 
 // Routes
 await app.register(authRoutes);
@@ -37,11 +51,13 @@ app.get("/api/podcast-themes", async () => {
   return { themes: PODCAST_THEMES };
 });
 
-// Health check
+// Health check — enhanced with memory + version
 app.get("/api/health", async () => ({
   status: "ok",
-  timestamp: new Date().toISOString(),
   uptime: process.uptime(),
+  memory: Math.round((process.memoryUsage().rss / 1024 / 1024) * 100) / 100,
+  timestamp: new Date().toISOString(),
+  version: "1.1.0",
 }));
 
 // Start server
@@ -56,3 +72,12 @@ try {
   app.log.error(err);
   process.exit(1);
 }
+
+// Graceful shutdown
+const gracefulShutdown = async (signal: string) => {
+  console.log(`[Server] ${signal} received, shutting down gracefully...`);
+  await app.close();
+  process.exit(0);
+};
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));

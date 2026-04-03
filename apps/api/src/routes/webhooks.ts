@@ -1,10 +1,44 @@
-import { FastifyInstance } from "fastify";
+import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { processMedia } from "../services/media-processor.js";
+
+// -- Rate limiter (in-memory, per IP) --
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 100;
+const RATE_WINDOW = 60000; // 60 seconds
+
+function checkRateLimit(request: FastifyRequest, reply: FastifyReply): boolean {
+  const ip = request.ip || request.headers["x-forwarded-for"]?.toString() || "unknown";
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW });
+    return false; // not limited
+  }
+
+  entry.count++;
+  if (entry.count > RATE_LIMIT) {
+    reply.status(429).send({ error: "Too many requests. Max 100 per minute." });
+    return true; // limited
+  }
+  return false;
+}
+
+// Cleanup stale entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now > entry.resetAt) rateLimitMap.delete(ip);
+  }
+}, 5 * 60 * 1000);
 
 export async function webhookRoutes(app: FastifyInstance) {
   // Increase body limit for media payloads (base64 can be large)
   app.post("/api/webhooks/whatsapp", { config: { rawBody: true }, bodyLimit: 50 * 1024 * 1024 }, async (request, reply) => {
+    // Rate limit check
+    if (checkRateLimit(request, reply)) return;
+
     const body = request.body as any;
     const message = body?.message;
     const chat = body?.chat;
@@ -106,6 +140,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     const { error } = await supabaseAdmin.from("captured_messages").insert(inserts);
     if (error) {
       console.error("[Webhook] Insert error:", error.message);
+      return reply.status(500).send({ error: "Failed to save message" });
     }
 
     console.log(`[Webhook] Saved ${inserts.length} ${mediaType} message(s) from ${senderName} in ${chat?.name || groupId}`);
@@ -117,6 +152,9 @@ export async function webhookRoutes(app: FastifyInstance) {
   // POST /api/webhooks/source/:token
   // ============================================================
   app.post("/api/webhooks/source/:token", { bodyLimit: 5 * 1024 * 1024 }, async (request, reply) => {
+    // Rate limit check
+    if (checkRateLimit(request, reply)) return;
+
     const { token } = request.params as { token: string };
 
     if (!token || token.length < 10) {

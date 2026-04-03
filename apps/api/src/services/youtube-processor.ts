@@ -2,8 +2,13 @@
  * YouTube Processor for PodcastIA
  *
  * Supports:
- * - Channel URLs: fetches latest videos via RSS, summarizes top 3 with Gemini
- * - Individual video URLs: Gemini watches the video via fileData and summarizes
+ * - Channel URLs: fetches latest videos via RSS + YouTube Data API v3 for richer metadata
+ * - Individual video URLs: YouTube Data API v3 metadata → Gemini fileData → oEmbed fallback
+ *
+ * Priority chain for individual videos:
+ *   1. YouTube Data API v3 (snippet.title + snippet.description + statistics)
+ *   2. Gemini fileData to WATCH the video and generate summary
+ *   3. oEmbed title + Gemini text research (fallback)
  *
  * Gemini 2.5 Flash can process YouTube video URLs natively via fileData.
  */
@@ -22,6 +27,10 @@ const MAX_VIDEOS_TO_SUMMARIZE = 3;
 const MAX_SUMMARY_CHARS = 2000;
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_TIMEOUT_MS = 120000; // 2 min per video (Gemini needs time to watch)
+
+const YOUTUBE_DATA_API_BASE = "https://www.googleapis.com/youtube/v3";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function isVideoUrl(url: string): boolean {
   return /(?:watch\?v=|youtu\.be\/|\/embed\/|\/shorts\/)/.test(url);
@@ -42,6 +51,105 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
+// ─── YouTube Data API v3 ────────────────────────────────────────────────────
+
+interface YouTubeVideoMeta {
+  title: string;
+  description: string;
+  channelTitle: string;
+  publishedAt: string;
+  tags: string[];
+  viewCount: string;
+  likeCount: string;
+  duration: string;
+}
+
+/**
+ * Fetch video metadata via YouTube Data API v3.
+ * Returns null on any failure (API not enabled, quota exceeded, etc.)
+ */
+async function fetchVideoMetaFromAPI(videoId: string): Promise<YouTubeVideoMeta | null> {
+  try {
+    const url = `${YOUTUBE_DATA_API_BASE}/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${env.GOOGLE_API_KEY}`;
+
+    console.log(`[youtube-processor] YouTube Data API v3 → video ${videoId}`);
+
+    const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.warn(`[youtube-processor] YouTube Data API v3 error ${resp.status}: ${errText.slice(0, 200)}`);
+      return null;
+    }
+
+    const data = (await resp.json()) as any;
+    const item = data?.items?.[0];
+    if (!item) {
+      console.warn(`[youtube-processor] YouTube Data API v3: no items for ${videoId}`);
+      return null;
+    }
+
+    const snippet = item.snippet || {};
+    const stats = item.statistics || {};
+    const contentDetails = item.contentDetails || {};
+
+    return {
+      title: snippet.title || "",
+      description: snippet.description || "",
+      channelTitle: snippet.channelTitle || "",
+      publishedAt: snippet.publishedAt || "",
+      tags: snippet.tags || [],
+      viewCount: stats.viewCount || "0",
+      likeCount: stats.likeCount || "0",
+      duration: contentDetails.duration || "",
+    };
+  } catch (err: any) {
+    console.warn(`[youtube-processor] YouTube Data API v3 failed for ${videoId}:`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Fetch latest videos from a channel via YouTube Data API v3.
+ * Returns null on failure (falls back to RSS).
+ */
+async function fetchChannelVideosFromAPI(
+  channelId: string,
+  maxResults = 10
+): Promise<Array<{ videoId: string; title: string; description: string; publishedAt: string }> | null> {
+  try {
+    const url = `${YOUTUBE_DATA_API_BASE}/search?part=snippet&channelId=${channelId}&type=video&order=date&maxResults=${maxResults}&key=${env.GOOGLE_API_KEY}`;
+
+    console.log(`[youtube-processor] YouTube Data API v3 → channel ${channelId} (max ${maxResults})`);
+
+    const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.warn(`[youtube-processor] YouTube Data API v3 channel error ${resp.status}: ${errText.slice(0, 200)}`);
+      return null;
+    }
+
+    const data = (await resp.json()) as any;
+    const items = data?.items;
+    if (!items || items.length === 0) return null;
+
+    return items
+      .map((item: any) => ({
+        videoId: item.id?.videoId || "",
+        title: item.snippet?.title || "",
+        description: item.snippet?.description || "",
+        publishedAt: item.snippet?.publishedAt || "",
+      }))
+      .filter((v: any) => v.videoId);
+  } catch (err: any) {
+    console.warn(`[youtube-processor] YouTube Data API v3 channel failed:`, err.message);
+    return null;
+  }
+}
+
+// ─── oEmbed (existing, now tertiary fallback) ───────────────────────────────
+
 /**
  * Get video title via oEmbed (no auth needed, fast)
  */
@@ -55,9 +163,13 @@ async function getVideoTitle(videoId: string): Promise<{ title: string; author: 
       const data = (await resp.json()) as any;
       return { title: data.title || "", author: data.author_name || "" };
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { title: "", author: "" };
 }
+
+// ─── Gemini (existing) ─────────────────────────────────────────────────────
 
 /**
  * Use Gemini to WATCH a YouTube video and generate a real summary.
@@ -76,25 +188,27 @@ async function summarizeVideoWithGemini(videoId: string, title: string): Promise
         headers: { "Content-Type": "application/json" },
         signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
         body: JSON.stringify({
-          contents: [{
-            parts: [
-              {
-                fileData: {
-                  fileUri: videoUrl,
-                  mimeType: "video/*",
+          contents: [
+            {
+              parts: [
+                {
+                  fileData: {
+                    fileUri: videoUrl,
+                    mimeType: "video/*",
+                  },
                 },
-              },
-              {
-                text: `Assista este video do YouTube e faca um resumo detalhado em portugues brasileiro.
+                {
+                  text: `Assista este video do YouTube e faca um resumo detalhado em portugues brasileiro.
 Inclua:
 - Os pontos principais discutidos
 - Dados, exemplos e casos mencionados
 - Conclusoes e recomendacoes do autor
 O resumo sera usado como fonte para um podcast, entao seja informativo e capture a essencia do conteudo.
 Maximo ${MAX_SUMMARY_CHARS} caracteres.`,
-              },
-            ],
-          }],
+                },
+              ],
+            },
+          ],
           generationConfig: {
             maxOutputTokens: 8192,
             temperature: 0.2,
@@ -162,8 +276,43 @@ Comece com "No video '${title}' do canal ${author}," e discorra sobre o tema de 
   }
 }
 
+// ─── Single Video Processing ────────────────────────────────────────────────
+
+/**
+ * Build a rich metadata header from YouTube Data API v3 data
+ */
+function buildMetaHeader(meta: YouTubeVideoMeta): string {
+  const parts: string[] = [];
+  if (meta.channelTitle) parts.push(`Canal: ${meta.channelTitle}`);
+  if (meta.viewCount && parseInt(meta.viewCount) > 0) {
+    parts.push(`Views: ${parseInt(meta.viewCount).toLocaleString("pt-BR")}`);
+  }
+  if (meta.likeCount && parseInt(meta.likeCount) > 0) {
+    parts.push(`Likes: ${parseInt(meta.likeCount).toLocaleString("pt-BR")}`);
+  }
+  if (meta.duration) {
+    // Parse ISO 8601 duration (PT1H2M3S)
+    const match = meta.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (match) {
+      const h = match[1] ? `${match[1]}h` : "";
+      const m = match[2] ? `${match[2]}m` : "";
+      const s = match[3] ? `${match[3]}s` : "";
+      parts.push(`Duracao: ${h}${m}${s}`);
+    }
+  }
+  if (meta.tags && meta.tags.length > 0) {
+    parts.push(`Tags: ${meta.tags.slice(0, 8).join(", ")}`);
+  }
+  return parts.join(" | ");
+}
+
 /**
  * Process a single YouTube video URL
+ *
+ * Flow:
+ *   1. YouTube Data API v3 for metadata (title, description, stats)
+ *   2. Gemini fileData to watch the video (best content quality)
+ *   3. Fallback: oEmbed title + Gemini text research
  */
 async function fetchSingleVideo(videoUrl: string, sourceName?: string): Promise<RSSItem[]> {
   const videoId = extractVideoId(videoUrl);
@@ -174,37 +323,72 @@ async function fetchSingleVideo(videoUrl: string, sourceName?: string): Promise<
 
   console.log(`[youtube-processor] Single video mode: ${videoId}`);
 
-  // Get title via oEmbed (fast)
-  const meta = await getVideoTitle(videoId);
-  const title = meta.title || sourceName || `Video ${videoId}`;
-  const author = meta.author || "";
+  // ── Step 1: Try YouTube Data API v3 for rich metadata ──
+  const apiMeta = await fetchVideoMetaFromAPI(videoId);
+
+  let title = "";
+  let author = "";
+  let apiDescription = "";
+  let metaHeader = "";
+
+  if (apiMeta) {
+    title = apiMeta.title;
+    author = apiMeta.channelTitle;
+    apiDescription = apiMeta.description;
+    metaHeader = buildMetaHeader(apiMeta);
+    console.log(`[youtube-processor] Data API v3 OK: "${title}" by ${author} (${apiMeta.viewCount} views)`);
+  } else {
+    // Fallback to oEmbed for basic title
+    console.log(`[youtube-processor] Data API v3 unavailable, falling back to oEmbed`);
+    const oEmbed = await getVideoTitle(videoId);
+    title = oEmbed.title;
+    author = oEmbed.author;
+  }
+
+  if (!title) title = sourceName || `Video ${videoId}`;
 
   console.log(`[youtube-processor] Video: "${title}" by ${author}`);
 
-  // Try 1: Gemini watches the actual video (best quality)
+  // ── Step 2: Gemini watches the actual video (best content quality) ──
   let content = await summarizeVideoWithGemini(videoId, title);
 
-  // Try 2: Gemini researches the topic from title (fallback)
+  // ── Step 3: Fallback — Gemini researches the topic from title ──
   if (!content && title) {
     console.log(`[youtube-processor] Falling back to topic research for: ${title}`);
     content = await researchTopicWithGemini(title, author);
   }
 
+  // ── Build final content with API description enrichment ──
+  const contentParts: string[] = [];
+  contentParts.push(`${title}${author ? ` - ${author}` : ""}`);
+  if (metaHeader) contentParts.push(metaHeader);
+
   if (content) {
-    console.log(`[youtube-processor] Got content (${content.length} chars) for: ${title}`);
-    return [{
-      title,
-      content: `${title}${author ? ` - ${author}` : ""}\n\n${content}`,
-      pubDate: new Date().toISOString(),
-    }];
+    contentParts.push("");
+    contentParts.push(content);
   }
 
-  return [{
-    title,
-    content: `${title}${author ? ` - ${author}` : ""}`,
-    pubDate: new Date().toISOString(),
-  }];
+  // If we have API description and Gemini failed, use description as content
+  if (!content && apiDescription) {
+    console.log(`[youtube-processor] Using YouTube Data API description as content`);
+    contentParts.push("");
+    contentParts.push(apiDescription.slice(0, MAX_SUMMARY_CHARS));
+  }
+
+  const finalContent = contentParts.join("\n");
+
+  console.log(`[youtube-processor] Got content (${finalContent.length} chars) for: ${title}`);
+
+  return [
+    {
+      title,
+      content: finalContent,
+      pubDate: apiMeta?.publishedAt || new Date().toISOString(),
+    },
+  ];
 }
+
+// ─── Channel Processing ─────────────────────────────────────────────────────
 
 /**
  * Extract channel ID from URL
@@ -230,11 +414,18 @@ async function extractChannelId(channelUrl: string): Promise<string | null> {
       if (match) return match[1];
     }
     return null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Process a YouTube channel URL
+ *
+ * Flow:
+ *   1. Try YouTube Data API v3 for latest videos (richer metadata)
+ *   2. Fallback to RSS feed
+ *   3. For top N videos, use Gemini fileData to summarize
  */
 async function fetchChannelVideos(channelUrl: string): Promise<RSSItem[]> {
   const channelId = await extractChannelId(channelUrl);
@@ -243,36 +434,105 @@ async function fetchChannelVideos(channelUrl: string): Promise<RSSItem[]> {
     return [];
   }
 
-  const feedUrl = `${YOUTUBE_RSS_BASE}?channel_id=${channelId}`;
-  console.log(`[youtube-processor] Fetching feed: ${feedUrl}`);
+  // ── Try YouTube Data API v3 for channel videos ──
+  const apiVideos = await fetchChannelVideosFromAPI(channelId, 10);
 
-  const rssItems = await fetchRSSContent(feedUrl);
-  if (rssItems.length === 0) return [];
+  let videoList: Array<{ videoId: string; title: string; description: string; pubDate: string }> = [];
 
-  const results: RSSItem[] = [];
+  if (apiVideos && apiVideos.length > 0) {
+    console.log(`[youtube-processor] Data API v3 returned ${apiVideos.length} videos for channel ${channelId}`);
 
-  for (const item of rssItems.slice(0, MAX_VIDEOS_TO_SUMMARIZE)) {
-    const videoId = extractVideoId(item.content) || extractVideoId(item.title);
-    if (!videoId) { results.push(item); continue; }
+    // Enrich top videos with full metadata (snippet+stats)
+    for (const v of apiVideos.slice(0, MAX_VIDEOS_TO_SUMMARIZE)) {
+      const fullMeta = await fetchVideoMetaFromAPI(v.videoId);
+      videoList.push({
+        videoId: v.videoId,
+        title: fullMeta?.title || v.title,
+        description: fullMeta?.description || v.description,
+        pubDate: fullMeta?.publishedAt || v.publishedAt,
+      });
+    }
+    // Add remaining without enrichment
+    for (const v of apiVideos.slice(MAX_VIDEOS_TO_SUMMARIZE)) {
+      videoList.push({
+        videoId: v.videoId,
+        title: v.title,
+        description: v.description,
+        pubDate: v.publishedAt,
+      });
+    }
+  } else {
+    // Fallback to RSS
+    console.log(`[youtube-processor] Data API v3 unavailable for channel, falling back to RSS`);
+    const feedUrl = `${YOUTUBE_RSS_BASE}?channel_id=${channelId}`;
+    console.log(`[youtube-processor] Fetching feed: ${feedUrl}`);
 
-    console.log(`[youtube-processor] Processing channel video: ${item.title} (${videoId})`);
-    const content = await summarizeVideoWithGemini(videoId, item.title);
+    const rssItems = await fetchRSSContent(feedUrl);
+    if (rssItems.length === 0) return [];
 
-    if (content) {
-      results.push({ title: item.title, content: `${item.title}\n\n${content}`, pubDate: item.pubDate });
-      console.log(`[youtube-processor] Got video summary for: ${item.title}`);
-    } else {
-      results.push(item);
-      console.log(`[youtube-processor] Using RSS description for: ${item.title}`);
+    for (const item of rssItems) {
+      const vid = extractVideoId(item.content) || extractVideoId(item.title);
+      videoList.push({
+        videoId: vid || "",
+        title: item.title,
+        description: item.content,
+        pubDate: item.pubDate,
+      });
     }
   }
 
-  for (const item of rssItems.slice(MAX_VIDEOS_TO_SUMMARIZE)) {
-    results.push(item);
+  if (videoList.length === 0) return [];
+
+  // ── Summarize top N with Gemini ──
+  const results: RSSItem[] = [];
+
+  for (const video of videoList.slice(0, MAX_VIDEOS_TO_SUMMARIZE)) {
+    if (!video.videoId) {
+      results.push({ title: video.title, content: video.description, pubDate: video.pubDate });
+      continue;
+    }
+
+    console.log(`[youtube-processor] Processing channel video: ${video.title} (${video.videoId})`);
+    const content = await summarizeVideoWithGemini(video.videoId, video.title);
+
+    if (content) {
+      results.push({
+        title: video.title,
+        content: `${video.title}\n\n${content}`,
+        pubDate: video.pubDate,
+      });
+      console.log(`[youtube-processor] Got video summary for: ${video.title}`);
+    } else if (video.description && video.description.length > 50) {
+      // Use API description as fallback content
+      results.push({
+        title: video.title,
+        content: `${video.title}\n\n${video.description.slice(0, MAX_SUMMARY_CHARS)}`,
+        pubDate: video.pubDate,
+      });
+      console.log(`[youtube-processor] Using API description for: ${video.title}`);
+    } else {
+      results.push({
+        title: video.title,
+        content: video.description || video.title,
+        pubDate: video.pubDate,
+      });
+      console.log(`[youtube-processor] Using basic info for: ${video.title}`);
+    }
+  }
+
+  // Remaining videos without Gemini summarization
+  for (const video of videoList.slice(MAX_VIDEOS_TO_SUMMARIZE)) {
+    results.push({
+      title: video.title,
+      content: video.description || video.title,
+      pubDate: video.pubDate,
+    });
   }
 
   return results;
 }
+
+// ─── Main Entry Point ───────────────────────────────────────────────────────
 
 /**
  * Main entry point

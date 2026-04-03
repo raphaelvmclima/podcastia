@@ -1,93 +1,59 @@
-# PodcastIA - Sessão 03/Abril/2026
+# PodcastIA — Sessao 03/Abril/2026
 
-## Resumo da Sessão
-Sessão de otimização completa do PodcastIA: LP, temas de podcast, upload de arquivos, integrações, revisão ortográfica e correção de bugs críticos.
+## Resumo
+Auditoria completa do sistema, correcao de pendencias acumuladas e implementacao de audio tematico por estilo de podcast.
 
-## Alterações Realizadas
+## Mudancas Realizadas
 
-### 1. Backend - 10 Temas de Podcast
-- Arquivo: 
-- Adicionados 10 temas com prompts únicos: Conversa, Aula, Jornalístico, Resumo Executivo, Comentários, Storytelling, Estudo Bíblico, Debate, Entrevista, Motivacional
-- Cada tema tem uid=197610(rapha) gid=197610 groups=197610, , , ,  e prompt GPT customizado
-- Função  gera prompt específico por tema
--  aceita parâmetro  (default: conversa)
-- Coluna  adicionada em  (Supabase)
+### 1. UAZAPI_URL Corrigido
+- .env: `severo.uazapi.com` -> `loumarturismo.uazapi.com`
+- Causa raiz do Alex nao receber podcasts (delivery_target="self" falhava ao resolver numero)
 
-### 2. Backend - Upload de Arquivos
-- Arquivo: 
-- Endpoint  com multipart
-- Suporta PDF (pdf-parse), imagens (Gemini Vision), texto
-- Bucket  criado no Supabase Storage
-- Pacotes: ,  instalados
-- Arquivo:  - multipart registrado
+### 2. Fix Delivery do Alex
+- Com UAZAPI_URL correto, a resolucao de "self" via /instance/status agora funciona
+- catch silencioso substituido por console.error com mensagem
+- Alex: 5511994319826 (numero resolve automaticamente da instancia UAZAPI)
 
-### 3. Backend - Bugs Críticos Corrigidos
-- **RLS Supabase**: Adicionadas políticas  em TODAS as 7 tabelas
-- **TTS fade-out**:  escapado para  (shell passthrough)
-- **Audio URL 24h**: Signed URLs regeneradas on-demand no GET /api/digests/:id
-- **Data BRT**: Removido , substituído por cálculo BRT manual
-- **UAZAPI URL**: Agora usa  em vez de hardcoded
-- **Música cache**: Background music cacheada localmente em 
-- **RSS dedup**: Deduplicação por conteúdo antes de inserir mensagens
-- **Limite msgs**:  no fetch de mensagens não processadas
-- **Storage error**: Adicionada verificação de erro no upload Supabase Storage
-- **Themes endpoint**: Movido  para fora do auth middleware
-- **CHECK constraint**: Adicionados , , ,  ao constraint de source_type
+### 3. Audio Tematico por Estilo (NOVO)
+Cada tema agora tem configuracao de audio unica no TTS:
 
-### 4. Frontend - Landing Page
-- Arquivo: 
-- Nova seção Estilos de Podcast com 10 cards interativos + auto-rotação
-- Fonte Arquivos adicionada com ícone
-- 4 integrações futuras: Passagens Aéreas, CRM, Google Agenda, Preços (badge Em breve)
-- Hero atualizado: badge, stats (10 estilos, 11 fontes)
-- FAQ expandido com perguntas sobre temas e upload
-- Pricing atualizado com features de upload
-- Nav com link Estilos
--  simplificado (return true) para evitar crashes de rendering
+| Tema | Direcao de Voz | Temperatura | Volume Musica |
+|------|---------------|-------------|---------------|
+| conversa | Entusiastico, brincalhao | 1.2 | 0.08 |
+| aula | Didatico, paciente, pedagogico | 0.9 | 0.05 |
+| jornalistico | Profissional, serio, cadenciado | 0.8 | 0.06 |
+| resumo | Direto, objetivo, assertivo | 0.7 | 0.04 |
+| comentarios | Analitico, engajado | 1.1 | 0.07 |
+| storytelling | Envolvente, dramatico | 1.3 | 0.10 |
+| estudo_biblico | Reverente, sereno | 0.8 | 0.06 |
+| debate | Energico, apaixonado | 1.3 | 0.07 |
+| entrevista | Profissional, curioso | 1.0 | 0.06 |
+| motivacional | MUITO energico, inspirador | 1.4 | 0.09 |
 
-### 5. Frontend - Dashboard
-- **Configurações** (): Seletor visual de temas com 10 cards
-- **Fontes** (): Upload drag-and-drop + 4 integrações Em breve
-- **Vozes**: Corrigido de OpenAI (onyx/nova) para Gemini TTS (Sadachbia=Leo, Leda=Isa)
+Arquivos: `tts.ts` (voice direction + temperature + music volume), `digest.ts` (passa theme ao TTS)
 
-### 6. Revisão Ortográfica (~100+ correções)
-Arquivos corrigidos: page.tsx, configuracoes, fontes, ai.ts, noticias, register, layout
-- Todas as palavras sem acento corrigidas (Ouça, Começar, Jornalístico, etc.)
-- MIME type  corrigido para  em noticias
-- Cores hardcoded substituídas por CSS variables
+### 4. Titulos e Mensagens por Tema
+- Digest title: "Jornal do dia", "Aula do dia", "Reflexao do dia", etc. (em vez de generico "Resumo do dia")
+- WhatsApp: emoji + label do tema na mensagem de entrega
 
-### 7. CSS
-- Arquivo: 
-- Adicionados estilos para grid de temas (.lp-themes-grid)
-- Demo player styles
-- Responsive improvements (380px, 480px, 640px, tablet, desktop)
-- Badge Em breve (.lp-badge-soon)
-- Removidos CSS duplicados e  (problemas de compositing)
+### 5. Console.logs Removidos
+- `configuracoes/page.tsx:251,257` — [Settings] Saving/Save result
+- `resumos/page.tsx:19` — Digests API response
 
-## Teste dos 10 Temas de Podcast
-Todos testados com conteúdo real (Tech, Economia, Turismo, Negócios):
-- Conversa: 4min 39s ✅
-- Aula: 6min 31s ✅
-- Jornalístico: 5min 05s ✅
-- Resumo: 5min 48s ✅
-- Comentários: 6min 09s ✅
-- Storytelling: 5min 22s ✅
-- Estudo Bíblico: 6min 22s ✅
-- Debate: 5min 42s ✅
-- Entrevista: (em andamento)
-- Motivacional: (em andamento)
+### 6. Git Commit + Push
+- 28 arquivos, 5369 insercoes, 1092 delecoes
+- Push para github.com/raphaelvmclima/podcastia.git (main)
+- PM2 save para persistir apos reboot
 
-## Pendências
-- Scroll reveal animation (desativado por performance - useInView retorna true)
-- Integrações futuras: Passagens, CRM, Google Agenda, Preços (stubs Em breve)
-- Email delivery (não implementado no backend, mostrado como opção)
-- Google News scraping pode quebrar (HTML regex frágil)
-- WhatsApp instance tokens em plain text no DB
+## Estado Atual
+- API + Web online e funcionando
+- Scheduler com heartbeat a cada 30min (BRT)
+- Raphael: podcast as 17:00 BRT, tema conversa
+- Alex: podcast as 08:00 BRT — agora deve receber corretamente
+- 10 temas de podcast com audio diferenciado
+- Webhooks WhatsApp recebendo normalmente
 
-## Stack
-- Frontend: Next.js 15.3 + React 19 + CSS custom
-- Backend: Fastify 5 + BullMQ + Redis
-- IA: GPT-4o-mini (script) + Gemini 2.5 Flash TTS (áudio)
-- DB: Supabase (PostgreSQL)
-- WhatsApp: UAZAPI multi-instance
-- Deploy: PM2 (podcastia-api:3001, podcastia-web:3002)
+## Pendencias Restantes
+- [ ] YouTube Data API v3 (nice-to-have, funciona sem ela via Gemini fileData)
+- [ ] Investigar 245 restarts do PM2 (possivel memory leak)
+- [ ] Testar processamento de midia em producao (enviar audio/PDF num grupo)

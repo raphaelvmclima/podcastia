@@ -22,6 +22,8 @@ interface ChatMessage {
   content: string;
 }
 
+const PLAYBACK_SPEEDS = [0.5, 1, 1.25, 1.5, 2];
+
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -33,6 +35,32 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+function getProgressKey(id: string): string {
+  return `podcastia_progress_${id}`;
+}
+
+function saveProgress(id: string, time: number) {
+  try { localStorage.setItem(getProgressKey(id), String(time)); } catch { /* quota */ }
+}
+
+function loadProgress(id: string): number {
+  try {
+    const val = localStorage.getItem(getProgressKey(id));
+    return val ? parseFloat(val) : 0;
+  } catch { return 0; }
+}
+
+function saveSpeed(speed: number) {
+  try { localStorage.setItem("podcastia_playback_speed", String(speed)); } catch { /* quota */ }
+}
+
+function loadSpeed(): number {
+  try {
+    const val = localStorage.getItem("podcastia_playback_speed");
+    if (val) { const p = parseFloat(val); if (PLAYBACK_SPEEDS.includes(p)) return p; }
+    return 1;
+  } catch { return 1; }
+}
 export default function DigestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [digest, setDigest] = useState<Digest | null>(null);
@@ -40,60 +68,96 @@ export default function DigestDetailPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioLoading, setAudioLoading] = useState(false);
   const [scriptExpanded, setScriptExpanded] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const progressSaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchDigest = useCallback(async () => {
     try {
       const res = await api(`/api/digests/${id}`);
       setDigest(res?.digest || res);
-    } catch {
-      /* empty */
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* empty */ } finally { setLoading(false); }
   }, [id]);
 
-  useEffect(() => {
-    fetchDigest();
-  }, [fetchDigest]);
+  useEffect(() => { fetchDigest(); setPlaybackSpeed(loadSpeed()); }, [fetchDigest]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
+    if (!digest || !audioRef.current) return;
+    const savedTime = loadProgress(id);
+    if (savedTime > 0 && audioRef.current) { audioRef.current.currentTime = savedTime; setCurrentTime(savedTime); }
+  }, [digest, id]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      progressSaveRef.current = setInterval(() => {
+        if (audioRef.current) saveProgress(id, audioRef.current.currentTime);
+      }, 5000);
+    } else {
+      if (progressSaveRef.current) { clearInterval(progressSaveRef.current); progressSaveRef.current = null; }
+      if (audioRef.current && currentTime > 0) saveProgress(id, currentTime);
+    }
+    return () => { if (progressSaveRef.current) clearInterval(progressSaveRef.current); };
+  }, [isPlaying, id, currentTime]);
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
+  useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = playbackSpeed; }, [playbackSpeed]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
+    if (audioError) { setAudioError(null); setAudioLoading(true); audioRef.current.load(); return; }
+    if (isPlaying) { audioRef.current.pause(); } else {
+      audioRef.current.play().catch(() => setAudioError("Nao foi possivel reproduzir o audio."));
     }
     setIsPlaying(!isPlaying);
   };
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-    }
-  };
+  const handleTimeUpdate = () => { if (audioRef.current) setCurrentTime(audioRef.current.currentTime); };
 
   const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
+    if (!audioRef.current) return;
+    setDuration(audioRef.current.duration); setAudioLoading(false); setAudioError(null);
+    audioRef.current.playbackRate = playbackSpeed;
+    const savedTime = loadProgress(id);
+    if (savedTime > 0 && savedTime < audioRef.current.duration - 1) { audioRef.current.currentTime = savedTime; setCurrentTime(savedTime); }
+  };
+
+  const handleAudioError = () => {
+    setAudioLoading(false); setIsPlaying(false);
+    const audio = audioRef.current;
+    if (audio?.error) {
+      switch (audio.error.code) {
+        case MediaError.MEDIA_ERR_ABORTED: setAudioError("Reproducao cancelada."); break;
+        case MediaError.MEDIA_ERR_NETWORK: setAudioError("Erro de rede ao carregar audio. Tente novamente."); break;
+        case MediaError.MEDIA_ERR_DECODE: setAudioError("Erro ao decodificar audio. Formato nao suportado."); break;
+        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: setAudioError("Formato de audio nao suportado pelo navegador."); break;
+        default: setAudioError("Erro desconhecido ao carregar audio.");
+      }
+    } else { setAudioError("Erro ao carregar audio."); }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current || !duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    audioRef.current.currentTime = pct * duration;
+    const newTime = pct * duration;
+    audioRef.current.currentTime = newTime; setCurrentTime(newTime); saveProgress(id, newTime);
   };
+
+  const cycleSpeed = () => {
+    const idx = PLAYBACK_SPEEDS.indexOf(playbackSpeed);
+    const newSpeed = PLAYBACK_SPEEDS[(idx + 1) % PLAYBACK_SPEEDS.length];
+    setPlaybackSpeed(newSpeed); saveSpeed(newSpeed);
+  };
+
+  const skipForward = () => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.currentTime + 15, duration); };
+  const skipBackward = () => { if (audioRef.current) audioRef.current.currentTime = Math.max(audioRef.current.currentTime - 15, 0); };
 
   const handleSendChat = async () => {
     const msg = chatInput.trim();
@@ -102,18 +166,12 @@ export default function DigestDetailPage() {
     setChatMessages((prev) => [...prev, { role: "user", content: msg }]);
     setChatLoading(true);
     try {
-      const res = await api(`/api/digests/${id}/chat`, {
-        method: "POST",
-        body: JSON.stringify({ message: msg }),
-      });
+      const res = await api(`/api/digests/${id}/chat`, { method: "POST", body: JSON.stringify({ message: msg }) });
       setChatMessages((prev) => [...prev, { role: "assistant", content: res?.response || res?.message || res?.content || "" }]);
     } catch {
       setChatMessages((prev) => [...prev, { role: "assistant", content: "Erro ao processar sua mensagem. Tente novamente." }]);
-    } finally {
-      setChatLoading(false);
-    }
+    } finally { setChatLoading(false); }
   };
-
   if (loading) {
     return (
       <div className="animate-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -145,9 +203,13 @@ export default function DigestDetailPage() {
         <audio
           ref={audioRef}
           src={digest.audio_url}
+          preload="metadata"
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
-          onEnded={() => setIsPlaying(false)}
+          onEnded={() => { setIsPlaying(false); saveProgress(id, 0); }}
+          onError={handleAudioError}
+          onWaiting={() => setAudioLoading(true)}
+          onCanPlay={() => setAudioLoading(false)}
         />
       )}
 
@@ -186,7 +248,14 @@ export default function DigestDetailPage() {
       </div>
 
       {/* Áudio player */}
-      <div className="card" style={{ padding: "16px", display: "flex", alignItems: "center", gap: "16px" }}>
+      <div className="card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+        {audioError && (
+          <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(239,68,68,0.1)", color: "#ef4444", fontSize: "var(--text-xs)", display: "flex", alignItems: "center", gap: "8px" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+            {audioError}
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
         <button
           onClick={togglePlay}
           style={{
@@ -241,6 +310,7 @@ export default function DigestDetailPage() {
             <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)" }}>{formatDuration(currentTime)}</span>
             <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)" }}>{formatDuration(duration || digest.audio_duration_seconds)}</span>
           </div>
+        </div>
         </div>
       </div>
 
@@ -416,6 +486,10 @@ export default function DigestDetailPage() {
         @keyframes dotPulse {
           0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
           40% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>
