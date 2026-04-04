@@ -114,6 +114,19 @@ const SOURCE_TYPES = [
     ),
   },
   {
+    id: "estudo",
+    name: "Estudo",
+    desc: "Pesquise qualquer tema com IA",
+    color: "#8B5CF6",
+    bg: "#ede9fe",
+    status: "active",
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    ),
+  },
+  {
     id: "instagram",
     name: "Instagram",
     desc: "Posts e stories",
@@ -273,6 +286,9 @@ const FORM_FIELDS: Record<string, FormField[]> = {
   google_calendar: [
     { key: "icalUrl", label: "URL do calendario iCal (.ics)", placeholder: "https://calendar.google.com/calendar/ical/...@group.calendar.google.com/public/basic.ics" },
   ],
+  estudo: [
+    { key: "study_topic", label: "Sobre o que você quer aprender?", placeholder: "Ex: Como funciona blockchain, Historia da IA, Impacto das redes sociais na saude mental...", type: "textarea" },
+  ],
   google_shopping: [
     { key: "products", label: "Produtos para monitorar (separados por virgula)", placeholder: "iPhone 15 Pro, MacBook Air M3, Galaxy S24" },
     { key: "region", label: "Regiao (opcional)", placeholder: "Brasil", optional: true },
@@ -289,7 +305,7 @@ const PODCAST_THEMES = [
   { id: "resumo", name: "Resumo Executivo", icon: "\u{1F4CB}", desc: "Direto ao ponto, focado em a\u00e7\u00e3o" },
   { id: "comentarios", name: "Coment\u00e1rios", icon: "\u{1F5E3}\uFE0F", desc: "An\u00e1lise opinativa com debates" },
   { id: "storytelling", name: "Storytelling", icon: "\u{1F4D6}", desc: "Not\u00edcias como hist\u00f3rias envolventes" },
-  { id: "estudo_biblico", name: "Estudo B\u00edblico", icon: "\u{1F4D5}", desc: "Reflex\u00f5es com base b\u00edblica" },
+  { id: "estudo", name: "Estudo", icon: "\u{1F52C}", desc: "Pesquise e aprenda sobre qualquer tema" },
   { id: "debate", name: "Debate", icon: "\u2694\uFE0F", desc: "Hosts debatendo com posi\u00e7\u00f5es opostas" },
   { id: "entrevista", name: "Entrevista", icon: "\u{1F3A4}", desc: "Formato pergunta e resposta" },
   { id: "motivacional", name: "Motivacional", icon: "\u{1F525}", desc: "Conte\u00fado inspirador e pr\u00e1tico" },
@@ -366,7 +382,7 @@ export default function FontesPage() {
     setActivePanel(typeId);
     setFormName("");
     setFormConfig(typeId === "http_request" ? { method: "GET" } : {});
-    setSelectedTheme("conversa");
+    setSelectedTheme(typeId === "estudo" ? "estudo" : "conversa");
   };
 
   const loadGroups = async (search?: string, filter?: string) => {

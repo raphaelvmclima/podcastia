@@ -140,11 +140,11 @@ export const PODCAST_THEMES: PodcastTheme[] = [
     promptStyle: "narrativo",
   },
   {
-    id: "estudo_biblico",
-    name: "Estudo Biblico",
-    description: "Reflexoes e ensinamentos com base biblica",
+    id: "estudo",
+    name: "Estudo",
+    description: "Podcast educativo sobre qualquer tema que voce quiser aprender",
     icon: "\uD83D\uDCD5",
-    promptStyle: "devocional",
+    promptStyle: "educativo",
   },
   {
     id: "debate",
@@ -249,15 +249,25 @@ function getThemePrompt(themeId: string, userName: string, style: string): strin
 - Abertura: frase cinematografica que mergulha o ouvinte na historia
 - Encerramento: revelacao do fio condutor + despedida para ${userName}`,
 
-    estudo_biblico: `Isa e Leo estao em um ESTUDO BIBLICO DEVOCIONAL. REGRAS OBRIGATORIAS:
-- Abertura com ORACAO CURTA: "Senhor, abre nossos olhos para enxergar Tua sabedoria nos acontecimentos de hoje. Amem."
-- Para CADA tema, conecte com um VERSICULO ESPECIFICO (livro, capitulo e versiculo)
-- Isa traz a REFLEXAO TEOLOGICA: o que Deus ensina atraves desse acontecimento
-- Leo traz a APLICACAO PRATICA: como viver isso no dia a dia
-- Use expressoes: "Isso me lembra o que diz em...", "Como Paulo escreveu aos..."
-- Tom ACOLHEDOR, SERENO, de quem fala com carinho
-- Fechamento com BENCAO: "${userName}, que Deus te abencoe e te guarde. Ate o proximo estudo."
-- PROIBIDO tom de noticiario. Isso e um DEVOCIONAL, nao um jornal.`,
+    estudo: `Isa e a PESQUISADORA ESPECIALISTA e Leo e o ESTUDANTE CURIOSO. Este e um PODCAST EDUCATIVO APROFUNDADO. REGRAS OBRIGATORIAS:
+- Isa pesquisou EXTENSIVAMENTE sobre o tema e traz conhecimento DETALHADO
+- Leo faz perguntas que o ouvinte faria: "Mas como assim?", "Me da um exemplo?", "E na pratica?"
+- ESTRUTURA do episodio:
+  1. INTRODUCAO: Isa apresenta o tema e por que e importante aprender sobre isso
+  2. FUNDAMENTOS: Conceitos basicos explicados com ANALOGIAS do dia a dia
+  3. APROFUNDAMENTO: Mecanismos, processos, como funciona por dentro
+  4. EXEMPLOS REAIS: Casos praticos, aplicacoes, numeros e dados
+  5. CONTROVERSIAS: Diferentes pontos de vista e debates sobre o tema
+  6. CURIOSIDADES: Fatos surpreendentes que Leo reage com "Nao sabia disso!"
+  7. TENDENCIAS: O que ha de mais recente e para onde caminha
+  8. RESUMO: Leo recapitula os pontos principais, Isa complementa
+- Isa CITA FONTES: "Segundo pesquisas recentes...", "De acordo com estudos da...", "Especialistas como X afirmam que..."
+- Leo usa expressoes de descoberta: "Ah, agora faz sentido!", "Entao quer dizer que...", "Isso muda minha visao sobre..."
+- Tom de SALA DE AULA UNIVERSITARIA mas acessivel: profundo sem ser inacessivel
+- PROIBIDO ser superficial. Va ALEM da definicao basica. Ensine o PORQUE e o COMO.
+- PROIBIDO inventar dados ou fatos. Use APENAS o conteudo das pesquisas fornecidas.
+- Abertura: "Ola ${userName}! Hoje vamos mergulhar fundo em um tema fascinante. Eu sou a Isa, fiz uma pesquisa completa, e o Leo vai fazer as perguntas que voce faria!"
+- Encerramento: "Espero que voce tenha aprendido tanto quanto eu, ${userName}! Se quiser se aprofundar mais, e so pedir outro estudo."`,
 
     debate: `Isa e Leo estao em um DEBATE ACALORADO. REGRAS OBRIGATORIAS:
 - Para cada tema, Isa defende posicao A e Leo defende posicao B (OPOSTAS)

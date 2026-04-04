@@ -154,7 +154,7 @@ const podcastThemes = [
   { id: "resumo", name: "Resumo Executivo", icon: "📋", desc: "Direto ao ponto, focado em ação" },
   { id: "comentarios", name: "Comentários", icon: "🗣️", desc: "Análise opinativa com debates" },
   { id: "storytelling", name: "Storytelling", icon: "📖", desc: "Notícias como histórias envolventes" },
-  { id: "estudo_biblico", name: "Estudo Bíblico", icon: "📕", desc: "Reflexões com base bíblica" },
+  { id: "estudo", name: "Estudo", icon: "🔬", desc: "Pesquise e aprenda sobre qualquer tema" },
   { id: "debate", name: "Debate", icon: "⚔️", desc: "Hosts debatendo com posições opostas" },
   { id: "entrevista", name: "Entrevista", icon: "🎤", desc: "Formato pergunta e resposta" },
   { id: "motivacional", name: "Motivacional", icon: "🔥", desc: "Conteúdo inspirador e prático" },

@@ -233,6 +233,11 @@ export async function sourcesRoutes(app: FastifyInstance) {
     const { count } = await supabaseAdmin.from("source_connections").select("*", { count: "exact", head: true }).eq("user_id", request.userId).eq("is_active", true);
     if ((count || 0) >= limits.maxSources) return reply.status(403).send({ error: "Limite atingido" });
 
+    // Validate estudo source
+    if (type === "estudo" && !config?.study_topic?.trim()) {
+      return reply.status(400).send({ error: "Descreva o tema que deseja estudar" });
+    }
+
     // For webhook sources, generate unique token and URL
     const finalConfig = { ...config };
     if (type === "webhook") {

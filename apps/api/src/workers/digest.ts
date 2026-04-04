@@ -210,12 +210,12 @@ async function processDigest(job: Job<DigestJobData>) {
       resumo: "Resumo executivo",
       comentarios: "Comentarios do dia",
       storytelling: "Historias do dia",
-      estudo_biblico: "Reflexao do dia",
+      estudo: "Estudo do dia",
       debate: "Debate do dia",
       entrevista: "Entrevista do dia",
       motivacional: "Motivacional do dia",
     };
-    const themeEmojis: Record<string, string> = { conversa: "\uD83D\uDCAC", aula: "\uD83C\uDF93", jornalistico: "\uD83D\uDCF0", resumo: "\uD83D\uDCCB", comentarios: "\uD83D\uDDE3\uFE0F", storytelling: "\uD83D\uDCD6", estudo_biblico: "\uD83D\uDCD5", debate: "\u2694\uFE0F", entrevista: "\uD83C\uDF99\uFE0F", motivacional: "\uD83D\uDD25" };
+    const themeEmojis: Record<string, string> = { conversa: "\uD83D\uDCAC", aula: "\uD83C\uDF93", jornalistico: "\uD83D\uDCF0", resumo: "\uD83D\uDCCB", comentarios: "\uD83D\uDDE3\uFE0F", storytelling: "\uD83D\uDCD6", estudo: "\uD83D\uDCD5", debate: "\u2694\uFE0F", entrevista: "\uD83C\uDF99\uFE0F", motivacional: "\uD83D\uDD25" };
 
     const allDigestIds: string[] = [];
     const allMessageIds: string[] = [];

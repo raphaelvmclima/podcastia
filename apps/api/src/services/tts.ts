@@ -45,10 +45,10 @@ const THEME_AUDIO_CONFIGS: Record<string, ThemeAudioConfig> = {
     temperature: 1.3,
     musicVolume: 0.10,
   },
-  estudo_biblico: {
-    voiceDirection: "Fale com voz suave, serena e acolhedora. Como um pastor falando com carinho para sua comunidade. Pausas contemplativas. Paz e sabedoria na voz.",
-    temperature: 0.8,
-    musicVolume: 0.06,
+  estudo: {
+    voiceDirection: "Fale como uma pesquisadora universitaria apaixonada pelo assunto, explicando com clareza e entusiasmo. O estudante fala com curiosidade genuina, surpresa ao aprender coisas novas. Ritmo calmo nas explicacoes complexas, enfatico nos pontos importantes e curiosidades.",
+    temperature: 0.9,
+    musicVolume: 0.05,
   },
   debate: {
     voiceDirection: "Fale com intensidade e paixao. Dois debatedores que discordam fortemente. Tom acalorado, energico, quase agressivo mas sempre respeitoso.",

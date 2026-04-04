@@ -227,7 +227,7 @@ const podcastThemes = [
   { id: "resumo", name: "Resumo Executivo", desc: "Direto ao ponto, focado em a\u00e7\u00e3o e decis\u00f5es estrat\u00e9gicas", icon: "\uD83D\uDCCB", color: "#F59E0B" },
   { id: "comentarios", name: "Coment\u00e1rios", desc: "An\u00e1lise opinativa com diferentes pontos de vista", icon: "\uD83D\uDDE3\uFE0F", color: "#EF4444" },
   { id: "storytelling", name: "Storytelling", desc: "Not\u00edcias contadas como hist\u00f3rias envolventes e cativantes", icon: "\uD83D\uDCD6", color: "#8B5CF6" },
-  { id: "estudo_biblico", name: "Estudo B\u00edblico", desc: "Reflex\u00f5es e ensinamentos com base b\u00edblica e aplica\u00e7\u00e3o pr\u00e1tica", icon: "\uD83D\uDCD5", color: "#D97706" },
+  { id: "estudo", name: "Estudo B\u00edblico", desc: "Reflex\u00f5es e ensinamentos com base b\u00edblica e aplica\u00e7\u00e3o pr\u00e1tica", icon: "\uD83D\uDCD5", color: "#D97706" },
   { id: "debate", name: "Debate", desc: "Hosts com posi\u00e7\u00f5es opostas debatendo os temas com argumentos", icon: "\u2694\uFE0F", color: "#DC2626" },
   { id: "entrevista", name: "Entrevista", desc: "Formato pergunta e resposta com especialista no assunto", icon: "\uD83C\uDFA4", color: "#7C3AED" },
   { id: "motivacional", name: "Motivacional", desc: "Conte\u00fado inspirador com li\u00e7\u00f5es pr\u00e1ticas para o dia a dia", icon: "\uD83D\uDD25", color: "#F97316" },

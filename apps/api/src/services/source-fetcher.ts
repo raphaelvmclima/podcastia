@@ -13,6 +13,7 @@ import { fetchCRMContent } from './crm-processor.js';
 import { fetchFlightsContent } from './flights-processor.js';
 import { fetchCalendarContent } from './calendar-processor.js';
 import { fetchPricesContent } from './prices-processor.js';
+import { fetchStudyContent } from './research-fetcher.js';
 
 export interface SourceConfig {
   type: string;
@@ -53,6 +54,7 @@ const SOURCE_TYPE_NAMES: Record<string, string> = {
   passagens: 'Passagens',
   google_calendar: 'Agenda',
   google_shopping: 'Precos',
+  estudo: 'Estudo',
 };
 
 /** Per-source-type timeout in ms */
@@ -65,6 +67,7 @@ const SOURCE_TIMEOUTS: Record<string, number> = {
   passagens: 30000,
   google_calendar: 20000,
   google_shopping: 45000,  // Multiple Google Shopping searches
+  estudo: 90000,           // Web research + Gemini can be slow
 };
 
 const DEFAULT_TIMEOUT = 30000;
@@ -245,6 +248,20 @@ export async function fetchSourceContent(source: SourceConfig): Promise<Captured
           content: item.content,
           group_name: item.group_name,
         }));
+        break;
+      }
+
+      case 'estudo': {
+        const studyTopic = source.config.study_topic || '';
+        if (!studyTopic) {
+          console.error(`[source-fetcher] Study source "${sourceName}" missing study_topic in config`);
+          return [];
+        }
+        result = await withTimeout(
+          fetchStudyContent(studyTopic),
+          timeoutMs,
+          `Study: ${sourceName}`
+        );
         break;
       }
 
