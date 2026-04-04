@@ -320,47 +320,25 @@ export default function ConfiguracoesPage() {
         </p>
       </div>
 
-      {/* Podcast theme */}
+      {/* Podcast theme - now per-source */}
       <div className="card" style={{ padding: 24 }}>
         <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--fg)", margin: "0 0 4px" }}>
           Estilo do Podcast
         </h2>
-        <p style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)", margin: "0 0 16px" }}>
-          Escolha o formato e tom do seu podcast gerado
-        </p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-          {podcastThemes.map((t) => {
-            const selected = settings.podcast_theme === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setSettings((prev) => ({ ...prev, podcast_theme: t.id }))}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 6,
-                  padding: "14px 16px",
-                  border: `2px solid ${selected ? "var(--primary)" : "var(--border)"}`,
-                  borderRadius: "var(--radius-lg)",
-                  background: selected ? "var(--primary-subtle)" : "var(--bg)",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "all 0.15s ease",
-                  width: "100%",
-                }}
-              >
-                <span style={{ fontSize: 24 }}>{t.icon}</span>
-                <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: selected ? "var(--primary)" : "var(--fg)" }}>
-                  {t.name}
-                </span>
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", lineHeight: 1.3 }}>
-                  {t.desc}
-                </span>
-              </button>
-            );
-          })}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderRadius: "var(--radius-lg)", background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <div>
+            <p style={{ fontSize: "var(--text-sm)", color: "var(--fg)", margin: 0, fontWeight: 500 }}>
+              O estilo do podcast agora e definido em cada fonte.
+            </p>
+            <p style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", margin: "4px 0 0" }}>
+              Acesse <a href="/dashboard/fontes" style={{ color: "var(--primary)", textDecoration: "underline" }}>Fontes</a> para configurar o estilo de cada fonte individualmente. Fontes com estilos diferentes geram podcasts separados.
+            </p>
+          </div>
         </div>
       </div>
 

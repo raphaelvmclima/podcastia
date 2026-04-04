@@ -103,7 +103,7 @@ function DemoPlayer() {
       <audio ref={audioRef} src="/lp-demo-podcast.mp3" preload="metadata" onTimeUpdate={() => { if (!audioRef.current) return; setCurTime(audioRef.current.currentTime); setProgress(audioRef.current.duration ? (audioRef.current.currentTime / audioRef.current.duration) * 100 : 0); }} onLoadedMetadata={() => { if (audioRef.current) setDur(audioRef.current.duration); }} onEnded={() => setPlaying(false)} />
       <div className="lp-demo-player-badge">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-        Ouça como funciona — 2 min
+        Ou&#231;a como funciona &mdash; 2 min
       </div>
       <div className="lp-demo-player-inner">
         <button className="lp-demo-play-btn" onClick={toggle} aria-label={playing ? "Pausar" : "Ouvir"}>
@@ -113,6 +113,90 @@ function DemoPlayer() {
           <div className="lp-demo-player-progress" style={{ width: progress + "%" }} />
         </div>
         <span className="lp-demo-player-time">{fmt(currentTime)} / {fmt(duration)}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Custom Plan Calculator ── */
+function CustomPlanCalculator() {
+  const [sources, setSources] = useState(5);
+  const [podcasts, setPodcasts] = useState(1);
+  const [whatsapp, setWhatsapp] = useState(false);
+
+  const price = 30 + (sources * 15) + (Math.max(0, podcasts - 1) * 25) + (whatsapp ? 50 : 0);
+
+  return (
+    <div className="lp-custom-plan">
+      <div className="lp-custom-plan-inner">
+        <div className="lp-custom-plan-header">
+          <span className="lp-custom-plan-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+          </span>
+          <h3>Personalizado</h3>
+          <p className="lp-pricing-desc">Monte o plano ideal para voc&#234;</p>
+        </div>
+
+        <div className="lp-custom-plan-controls">
+          <div className="lp-custom-control">
+            <label>
+              <span className="lp-custom-label">Fontes</span>
+              <span className="lp-custom-value">{sources}</span>
+            </label>
+            <input
+              type="range"
+              min={1}
+              max={50}
+              value={sources}
+              onChange={(e) => setSources(Number(e.target.value))}
+              className="lp-custom-slider"
+            />
+            <div className="lp-custom-range-labels"><span>1</span><span>25</span><span>50</span></div>
+          </div>
+
+          <div className="lp-custom-control">
+            <label>
+              <span className="lp-custom-label">Podcasts por dia</span>
+              <span className="lp-custom-value">{podcasts}</span>
+            </label>
+            <input
+              type="range"
+              min={1}
+              max={5}
+              value={podcasts}
+              onChange={(e) => setPodcasts(Number(e.target.value))}
+              className="lp-custom-slider"
+            />
+            <div className="lp-custom-range-labels"><span>1</span><span>3</span><span>5</span></div>
+          </div>
+
+          <div className="lp-custom-control">
+            <label className="lp-custom-toggle-label">
+              <span className="lp-custom-label">Entrega via WhatsApp</span>
+              <button
+                type="button"
+                className={`lp-custom-toggle${whatsapp ? " lp-custom-toggle-on" : ""}`}
+                onClick={() => setWhatsapp(!whatsapp)}
+                aria-pressed={whatsapp}
+              >
+                <span className="lp-custom-toggle-thumb" />
+              </button>
+            </label>
+          </div>
+        </div>
+
+        <div className="lp-custom-plan-breakdown">
+          <div className="lp-breakdown-row"><span>Base</span><span>R$ 30</span></div>
+          <div className="lp-breakdown-row"><span>{sources} fonte{sources > 1 ? "s" : ""} &times; R$ 15</span><span>R$ {sources * 15}</span></div>
+          {podcasts > 1 && <div className="lp-breakdown-row"><span>{podcasts - 1} podcast{podcasts > 2 ? "s" : ""} extra &times; R$ 25</span><span>R$ {(podcasts - 1) * 25}</span></div>}
+          {whatsapp && <div className="lp-breakdown-row"><span>WhatsApp</span><span>R$ 50</span></div>}
+          <div className="lp-breakdown-total"><span>Total</span><span>R$ {price}<small>/m&#234;s</small></span></div>
+        </div>
+
+        <Link href="/register" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: "1rem" }}>
+          Come&#231;ar com plano personalizado
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </Link>
       </div>
     </div>
   );
@@ -130,44 +214,50 @@ const sourceIcons = {
   crm: (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>),
   calendar: (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>),
   shopping: (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EA4335" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>),
+  instagram: (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E4405F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>),
+  twitter: (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1DA1F2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg>),
+  telegram: (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0088CC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.5 7.5a1.09 1.09 0 0 0 .076 2.032l4.248 1.333 1.5 5.467a1 1 0 0 0 1.708.378l2.349-2.487 4.379 3.218a1.286 1.286 0 0 0 2.04-.77l3-15.5a2.25 2.25 0 0 0-1.778-2.386z"/></svg>),
+  email: (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>),
 };
 
 const podcastThemes = [
-  { id: "conversa", name: "Conversa", desc: "Dois hosts conversando naturalmente sobre os temas", icon: "💬", color: "var(--primary)" },
-  { id: "aula", name: "Aula", desc: "Professor explicando de forma didática com exemplos", icon: "🎓", color: "#10B981" },
-  { id: "jornalistico", name: "Jornalístico", desc: "Formato telejornal com notícias objetivas", icon: "📰", color: "#3B82F6" },
-  { id: "resumo", name: "Resumo Executivo", desc: "Direto ao ponto, focado em ação e decisões", icon: "📋", color: "#F59E0B" },
-  { id: "comentarios", name: "Comentários", desc: "Análise opinativa com diferentes pontos de vista", icon: "🗣️", color: "#EF4444" },
-  { id: "storytelling", name: "Storytelling", desc: "Noticias contadas como histórias envolventes", icon: "📖", color: "#8B5CF6" },
-  { id: "estudo_biblico", name: "Estudo Bíblico", desc: "Reflexões e ensinamentos com base bíblica", icon: "📕", color: "#D97706" },
-  { id: "debate", name: "Debate", desc: "Hosts com posições opostas debatendo os temas", icon: "⚔️", color: "#DC2626" },
-  { id: "entrevista", name: "Entrevista", desc: "Formato pergunta e resposta com especialista", icon: "🎤", color: "#7C3AED" },
-  { id: "motivacional", name: "Motivacional", desc: "Conteudo inspirador com lições práticas", icon: "🔥", color: "#F97316" },
+  { id: "conversa", name: "Conversa", desc: "Dois hosts conversando naturalmente sobre os temas", icon: "\uD83D\uDCAC", color: "var(--primary)" },
+  { id: "aula", name: "Aula", desc: "Professor explicando de forma did\u00e1tica com exemplos pr\u00e1ticos", icon: "\uD83C\uDF93", color: "#10B981" },
+  { id: "jornalistico", name: "Jornal\u00edstico", desc: "Formato telejornal com not\u00edcias objetivas e diretas", icon: "\uD83D\uDCF0", color: "#3B82F6" },
+  { id: "resumo", name: "Resumo Executivo", desc: "Direto ao ponto, focado em a\u00e7\u00e3o e decis\u00f5es estrat\u00e9gicas", icon: "\uD83D\uDCCB", color: "#F59E0B" },
+  { id: "comentarios", name: "Coment\u00e1rios", desc: "An\u00e1lise opinativa com diferentes pontos de vista", icon: "\uD83D\uDDE3\uFE0F", color: "#EF4444" },
+  { id: "storytelling", name: "Storytelling", desc: "Not\u00edcias contadas como hist\u00f3rias envolventes e cativantes", icon: "\uD83D\uDCD6", color: "#8B5CF6" },
+  { id: "estudo_biblico", name: "Estudo B\u00edblico", desc: "Reflex\u00f5es e ensinamentos com base b\u00edblica e aplica\u00e7\u00e3o pr\u00e1tica", icon: "\uD83D\uDCD5", color: "#D97706" },
+  { id: "debate", name: "Debate", desc: "Hosts com posi\u00e7\u00f5es opostas debatendo os temas com argumentos", icon: "\u2694\uFE0F", color: "#DC2626" },
+  { id: "entrevista", name: "Entrevista", desc: "Formato pergunta e resposta com especialista no assunto", icon: "\uD83C\uDFA4", color: "#7C3AED" },
+  { id: "motivacional", name: "Motivacional", desc: "Conte\u00fado inspirador com li\u00e7\u00f5es pr\u00e1ticas para o dia a dia", icon: "\uD83D\uDD25", color: "#F97316" },
 ];
 
 const plans = [
-  { name: "Gratuito", price: "0", desc: "Para experimentar", features: ["1 podcast/dia", "3 fontes", "Voz padrão", "Entrega no app", "Histórico 7 dias"], cta: "Começar grátis", featured: false },
-  { name: "Starter", price: "69", desc: "Uso pessoal", features: ["1 podcast/dia", "5 fontes", "2 vozes premium", "WhatsApp", "Histórico 30 dias", "Upload de arquivos"], cta: "Assinar Starter", featured: false },
-  { name: "Pro", price: "149", desc: "Para profissionais", features: ["2 podcasts/dia", "10 fontes", "Todas as vozes", "WhatsApp + Email", "Histórico ilimitado", "Todos os estilos", "Temas premium", "Suporte prioritário"], cta: "Assinar Pro", featured: true, badge: "Mais popular" },
-  { name: "Business", price: "299", desc: "Equipes e empresas", features: ["3 podcasts/dia", "Fontes ilimitadas", "Todas as vozes", "Todos os canais", "API de integração", "Multi-usuários", "Suporte dedicado", "Onboarding"], cta: "Falar com vendas", featured: false },
+  { name: "Gratuito", price: "0", desc: "Para experimentar", features: ["1 podcast/dia", "3 fontes", "Voz padr\u00e3o", "Entrega no app", "Hist\u00f3rico 7 dias"], cta: "Come\u00e7ar gr\u00e1tis", featured: false },
+  { name: "Starter", price: "120", desc: "Uso pessoal", features: ["1 podcast/dia", "5 fontes", "2 vozes premium", "Entrega via WhatsApp", "Hist\u00f3rico 30 dias", "Upload de arquivos"], cta: "Assinar Starter", featured: false },
+  { name: "Pro", price: "200", desc: "Para profissionais", features: ["2 podcasts/dia", "10 fontes", "Todas as vozes", "WhatsApp + Email", "Hist\u00f3rico ilimitado", "Todos os 10 estilos", "Temas premium", "Suporte priorit\u00e1rio"], cta: "Assinar Pro", featured: true, badge: "Mais popular" },
+  { name: "Business", price: "350", desc: "Equipes e empresas", features: ["3 podcasts/dia", "Fontes ilimitadas", "Todas as vozes", "Todos os canais", "API de integra\u00e7\u00e3o", "Multi-usu\u00e1rios", "Suporte dedicado", "Onboarding", "Prioridade na fila"], cta: "Falar com vendas", featured: false },
 ];
 
 const faqs = [
-  { q: "Como funciona a geração do podcast?", a: "Nosso sistema coleta conteúdo das suas fontes configuradas (WhatsApp, RSS, YouTube, APIs, PDFs, etc), usa GPT-4o para criar um roteiro no estilo que você escolher e Gemini TTS para gerar audio com vozes naturais em portugues. Tudo automático nos horarios que você definir." },
-  { q: "Posso escolher o estilo do podcast?", a: "Sim! Oferecemos 10 estilos diferentes: Conversa, Aula, Jornalistico, Resumo Executivo, Comentarios, Storytelling, Estudo Bíblico, Debate, Entrevista e Motivacional. Cada estilo tem uma abordagem unica para apresentar o conteúdo." },
-  { q: "Quais tipos de arquivo posso enviar?", a: "Você pode enviar PDFs, imagens (PNG, JPG, WebP), arquivos de texto e CSVs. A IA extrai o conteúdo automaticamente e usa como fonte para o podcast." },
-  { q: "Preciso ter conhecimento tecnico?", a: "Não! A interface é intuitiva. Para WhatsApp, basta escanear um QR code. Para RSS e YouTube, cole a URL. Para arquivos, basta arrastar e soltar." },
-  { q: "Posso cancelar a qualquer momento?", a: "Sim, sem multa e sem burocracia. Você mantém acesso ate o final do periodo pago." },
-  { q: "Qual a duracao media de um podcast?", a: "Depende do volume de conteúdo e do seu plano. Podcasts no plano Free duram ate 5 minutos. No Pro, ate 30 minutos. A IA otimiza o conteúdo para não ser repetitivo." },
-  { q: "Meus dados estao seguros?", a: "Sim. Usamos criptografia em transito e em repouso. Nenhuma mensagem e armazenada apos ser processada no podcast. Nao compartilhamos dados com terceiros." },
-  { q: "Funciona em portugues?", a: "Sim! Todas as vozes e scripts sao gerados em portugues brasileiro. O sistema tambem processa fontes em ingles e espanhol, traduzindo automaticamente." },
+  { q: "Como funciona a gera\u00e7\u00e3o do podcast?", a: "Nosso sistema coleta conte\u00fado das suas fontes configuradas (WhatsApp, RSS, YouTube, APIs, PDFs, etc), usa GPT-4o-mini para criar um roteiro no estilo que voc\u00ea escolher entre os 10 dispon\u00edveis, e o Gemini TTS gera \u00e1udio com vozes naturais em portugu\u00eas. Tudo autom\u00e1tico nos hor\u00e1rios que voc\u00ea definir. O podcast \u00e9 entregue direto no app ou via WhatsApp." },
+  { q: "Posso escolher o estilo do podcast?", a: "Sim! Oferecemos 10 estilos diferentes: Conversa, Aula, Jornal\u00edstico, Resumo Executivo, Coment\u00e1rios, Storytelling, Estudo B\u00edblico, Debate, Entrevista e Motivacional. Cada estilo tem uma abordagem \u00fanica para apresentar o conte\u00fado, com tons e din\u00e2micas diferentes entre os hosts." },
+  { q: "Quais fontes posso conectar?", a: "J\u00e1 suportamos WhatsApp (grupos), YouTube (canais e v\u00eddeos individuais com IA que assiste os v\u00eddeos), RSS Feeds, Not\u00edcias curadas por IA, CRM (FlwChat, HubSpot), Google Agenda (iCal), Passagens A\u00e9reas, Pre\u00e7os de Produtos, HTTP Request (APIs customizadas), Webhooks e Upload de arquivos (PDF, TXT, CSV, imagens). Em breve: Instagram, Twitter, Telegram e Email." },
+  { q: "Como funciona a fonte do YouTube?", a: "Nossa IA (Gemini) literalmente assiste os v\u00eddeos dos canais que voc\u00ea configurar, extrai o conte\u00fado relevante e usa como fonte para o podcast. Voc\u00ea pode adicionar canais inteiros ou v\u00eddeos individuais." },
+  { q: "Preciso ter conhecimento t\u00e9cnico?", a: "N\u00e3o! A interface \u00e9 intuitiva. Para WhatsApp, basta escanear um QR code. Para RSS e YouTube, cole a URL. Para arquivos, basta arrastar e soltar. Para APIs, basta informar a URL e headers." },
+  { q: "Posso cancelar a qualquer momento?", a: "Sim, sem multa e sem burocracia. Voc\u00ea mant\u00e9m acesso at\u00e9 o final do per\u00edodo pago." },
+  { q: "Qual a dura\u00e7\u00e3o m\u00e9dia de um podcast?", a: "Depende do volume de conte\u00fado e do estilo escolhido. Podcasts costumam durar entre 3 e 15 minutos. A IA otimiza o conte\u00fado para n\u00e3o ser repetitivo e manter a qualidade." },
+  { q: "Posso ouvir no celular?", a: "Sim! O PodcastIA \u00e9 uma PWA \u2014 voc\u00ea pode instalar como app no celular. O player tem controle de velocidade e o progresso \u00e9 salvo automaticamente. Al\u00e9m disso, voc\u00ea pode receber o \u00e1udio diretamente no WhatsApp." },
+  { q: "Meus dados est\u00e3o seguros?", a: "Sim. Usamos criptografia em tr\u00e2nsito e em repouso. Nenhuma mensagem \u00e9 armazenada ap\u00f3s ser processada no podcast. N\u00e3o compartilhamos dados com terceiros." },
+  { q: "Funciona em portugu\u00eas?", a: "Sim! Todas as vozes e scripts s\u00e3o gerados em portugu\u00eas brasileiro com vozes naturais do Gemini TTS. O sistema tamb\u00e9m processa fontes em ingl\u00eas e espanhol, traduzindo automaticamente." },
 ];
 
 const steps = [
-  { num: "1", title: "Conecte suas fontes", desc: "WhatsApp, YouTube, RSS, APIs, PDFs, imagens — em menos de 2 minutos.", icon: (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/><line x1="12" y1="6" x2="12" y2="18"/><line x1="6" y1="12" x2="18" y2="12"/></svg>) },
-  { num: "2", title: "Escolha o estilo", desc: "Aula, jornal, debate, motivacional — o podcast do seu jeito.", icon: (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M3 12h18M5.63 5.63l12.73 12.73M18.36 5.63L5.63 18.36"/></svg>) },
-  { num: "3", title: "IA processa tudo", desc: "GPT-4o analisa, filtra e cria um roteiro personalizado.", icon: (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>) },
-  { num: "4", title: "Receba seu podcast", desc: "Áudio com voz natural entregue no WhatsApp, app ou onde preferir.", icon: (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>) },
+  { num: "1", title: "Conecte suas fontes", desc: "WhatsApp, YouTube, RSS, APIs, PDFs, webhooks \u2014 em menos de 2 minutos.", icon: (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/><line x1="12" y1="6" x2="12" y2="18"/><line x1="6" y1="12" x2="18" y2="12"/></svg>) },
+  { num: "2", title: "Escolha o estilo", desc: "10 estilos: aula, jornal, debate, motivacional, storytelling e mais.", icon: (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M3 12h18M5.63 5.63l12.73 12.73M18.36 5.63L5.63 18.36"/></svg>) },
+  { num: "3", title: "IA processa tudo", desc: "GPT-4o-mini analisa e cria o roteiro. Gemini TTS gera \u00e1udio com vozes naturais.", icon: (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>) },
+  { num: "4", title: "Receba seu podcast", desc: "\u00c1udio entregue no WhatsApp, no app com player e controle de velocidade.", icon: (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>) },
 ];
 
 export default function LandingPage() {
@@ -224,7 +314,7 @@ export default function LandingPage() {
             <a href="#planos" onClick={() => setMobileNav(false)}>Planos</a>
             <a href="#faq" onClick={() => setMobileNav(false)}>FAQ</a>
             <Link href="/login" className="btn btn-ghost" onClick={() => setMobileNav(false)}>Entrar</Link>
-            <Link href="/register" className="btn btn-primary" onClick={() => setMobileNav(false)}>Começar grátis</Link>
+            <Link href="/register" className="btn btn-primary" onClick={() => setMobileNav(false)}>Come&#231;ar gr&#225;tis</Link>
           </nav>
           <div className="lp-header-right">
             <button className="theme-toggle" onClick={cycleTheme} title={`Tema: ${theme}`}>
@@ -242,16 +332,16 @@ export default function LandingPage() {
       {/* HERO */}
       <section className="lp-hero">
         <ParticleGrid />
-        <Reveal><div className="lp-hero-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Novo: 10 estilos de podcast + upload de arquivos</div></Reveal>
-        <h1 className="lp-hero-title lp-typewriter">Pare de ler. <span className="gradient-text">Ouça.</span></h1>
-        <Reveal delay={200}><p className="lp-hero-sub">Transforme WhatsApp, YouTube, RSS, PDFs e qualquer fonte de dados em <strong>podcasts personalizados</strong> com inteligência artificial. Escolha o estilo, receba no WhatsApp.</p></Reveal>
+        <Reveal><div className="lp-hero-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Novo: 10 estilos + 11 fontes + entrega via WhatsApp</div></Reveal>
+        <h1 className="lp-hero-title lp-typewriter">Transforme qualquer fonte em <span className="gradient-text">podcasts personalizados com IA</span></h1>
+        <Reveal delay={200}><p className="lp-hero-sub">WhatsApp, RSS, YouTube, Not&#237;cias IA, CRM, Agenda, Passagens, Pre&#231;os &mdash; conecte suas fontes, escolha entre <strong>10 estilos de podcast</strong> e receba &#225;udio com vozes naturais direto no <strong>WhatsApp</strong> ou no app.</p></Reveal>
         <Reveal delay={400}>
           <div className="lp-hero-ctas">
-            <Link href="/register" className="btn btn-primary btn-lg">Começar grátis<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></Link>
+            <Link href="/register" className="btn btn-primary btn-lg">Come&#231;ar gr&#225;tis<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></Link>
             <a href="#como-funciona" className="btn btn-secondary btn-lg">Ver como funciona</a>
           </div>
         </Reveal>
-        <Reveal delay={500}><p className="lp-hero-note">Grátis para sempre no plano Free. Sem cartão.</p></Reveal>
+        <Reveal delay={500}><p className="lp-hero-note">Gr&#225;tis para sempre no plano Free. Sem cart&#227;o.</p></Reveal>
         <Reveal delay={600}><Waveform /></Reveal>
         <Reveal delay={650}><DemoPlayer /></Reveal>
         <Reveal delay={700}>
@@ -260,7 +350,7 @@ export default function LandingPage() {
             <div className="lp-stat-sep" />
             <div className="lp-stat"><span className="lp-stat-val"><AnimatedNumber target={10} /></span><span className="lp-stat-label">Estilos de podcast</span></div>
             <div className="lp-stat-sep" />
-            <div className="lp-stat"><span className="lp-stat-val"><AnimatedNumber target={11} /></span><span className="lp-stat-label">Tipos de fonte</span></div>
+            <div className="lp-stat"><span className="lp-stat-val"><AnimatedNumber target={15} suffix="+" /></span><span className="lp-stat-label">Tipos de fonte</span></div>
             <div className="lp-stat-sep" />
             <div className="lp-stat"><span className="lp-stat-val"><AnimatedNumber target={98} suffix="%" /></span><span className="lp-stat-label">Uptime</span></div>
           </div>
@@ -272,14 +362,14 @@ export default function LandingPage() {
         <div className="lp-section-inner">
           <Reveal>
             <p className="lp-overline">O problema</p>
-            <h2 className="lp-section-title">Você não tem tempo de ler tudo. <span className="lp-text-muted">Ninguém tem.</span></h2>
+            <h2 className="lp-section-title">Voc&#234; n&#227;o tem tempo de ler tudo. <span className="lp-text-muted">Ningu&#233;m tem.</span></h2>
           </Reveal>
           <div className="lp-problem-grid">
             {[
-              { icon: "📱", title: "Dezenas de grupos no WhatsApp", desc: "Mensagens importantes se perdem em centenas de conversas." },
-              { icon: "📰", title: "Notícias fragmentadas", desc: "Abrir 10 sites por dia não é produtivo. Voce perde o contexto." },
-              { icon: "🎥", title: "Vídeos longos demais", desc: "Um video de 40 min que poderia ser resumido em 3 minutos." },
-              { icon: "⏰", title: "Informação vira ruído", desc: "Quanto mais fontes, mais difícil separar o que importa." },
+              { icon: "\uD83D\uDCF1", title: "Dezenas de grupos no WhatsApp", desc: "Mensagens importantes se perdem em centenas de conversas di\u00e1rias." },
+              { icon: "\uD83D\uDCF0", title: "Not\u00edcias fragmentadas", desc: "Abrir 10 sites por dia n\u00e3o \u00e9 produtivo. Voc\u00ea perde o contexto." },
+              { icon: "\uD83C\uDFA5", title: "V\u00eddeos longos demais", desc: "Um v\u00eddeo de 40 min que poderia ser resumido em 3 minutos de \u00e1udio." },
+              { icon: "\u23F0", title: "Informa\u00e7\u00e3o vira ru\u00eddo", desc: "Quanto mais fontes, mais dif\u00edcil separar o que realmente importa." },
             ].map((p, i) => (<Reveal key={p.title} delay={i * 100}><div className="lp-problem-card"><span className="lp-problem-icon">{p.icon}</span><h4>{p.title}</h4><p>{p.desc}</p></div></Reveal>))}
           </div>
         </div>
@@ -304,7 +394,7 @@ export default function LandingPage() {
           <Reveal>
             <p className="lp-overline">Estilos de podcast</p>
             <h2 className="lp-section-title">Seu podcast, do seu jeito</h2>
-            <p className="lp-section-sub">Escolha entre 10 estilos diferentes. Cada um com abordagem, tom e dinâmica únicos entre os hosts.</p>
+            <p className="lp-section-sub">Escolha entre 10 estilos diferentes. Cada um com abordagem, tom e din&#226;mica &#250;nicos entre os hosts. &#193;udio gerado pelo Gemini TTS com vozes naturais em portugu&#234;s.</p>
           </Reveal>
           <div className="lp-themes-grid">
             {podcastThemes.map((t, i) => (
@@ -329,22 +419,26 @@ export default function LandingPage() {
         <div className="lp-section-inner">
           <Reveal>
             <p className="lp-overline">Fontes suportadas</p>
-            <h2 className="lp-section-title">Conecte qualquer fonte de informação</h2>
-            <p className="lp-section-sub">Já disponível ou em breve. Envie dados via HTTP/Webhook ou faca upload de arquivos.</p>
+            <h2 className="lp-section-title">Conecte qualquer fonte de informa&#231;&#227;o</h2>
+            <p className="lp-section-sub">11 fontes ativas e mais chegando em breve. Envie dados via HTTP/Webhook, upload de arquivos ou conecte diretamente.</p>
           </Reveal>
           <div className="lp-sources-grid">
             {[
               { name: "WhatsApp", desc: "Grupos e contatos monitorados em tempo real", icon: sourceIcons.whatsapp, live: true },
-              { name: "YouTube", desc: "IA assiste videos e extrai o conteúdo relevante", icon: sourceIcons.youtube, live: true },
-              { name: "RSS Feeds", desc: "Blogs, portais de notícias, qualquer feed RSS/Atom", icon: sourceIcons.rss, live: true },
-              { name: "Arquivos", desc: "Upload de PDFs, imagens, textos e documentos", icon: sourceIcons.file, live: true },
-              { name: "HTTP Request", desc: "Consuma qualquer API — GET ou POST com headers", icon: sourceIcons.http, live: true },
+              { name: "RSS Feeds", desc: "Blogs, portais de not\u00edcias, qualquer feed RSS/Atom", icon: sourceIcons.rss, live: true },
+              { name: "YouTube", desc: "Canais + v\u00eddeos individuais. Gemini assiste os v\u00eddeos e extrai conte\u00fado", icon: sourceIcons.youtube, live: true },
+              { name: "Not\u00edcias IA", desc: "Curadoria autom\u00e1tica por IA baseada nas suas prefer\u00eancias", icon: sourceIcons.news, live: true },
+              { name: "CRM", desc: "FlwChat, HubSpot e CRMs customizados via API", icon: sourceIcons.crm, live: true },
+              { name: "Google Agenda", desc: "Sincronize via iCal \u2014 resumo de compromissos e reuni\u00f5es", icon: sourceIcons.calendar, live: true },
+              { name: "Passagens A\u00e9reas", desc: "Monitore ofertas de passagens por destino escolhido", icon: sourceIcons.passagens, live: true },
+              { name: "Pre\u00e7os de Produtos", desc: "Google Shopping + promos \u2014 monitore pre\u00e7os em tempo real", icon: sourceIcons.shopping, live: true },
+              { name: "HTTP Request", desc: "Consuma qualquer API \u2014 GET ou POST com headers customizados", icon: sourceIcons.http, live: true },
               { name: "Webhook", desc: "Receba dados de n8n, Zapier, Make ou qualquer sistema", icon: sourceIcons.webhook, live: true },
-              { name: "Notícias IA", desc: "Curadoria automática por topicos com busca inteligente", icon: sourceIcons.news, live: true },
-              { name: "Passagens Aereas", desc: "Monitore preços de passagens por destino escolhido", icon: sourceIcons.passagens, live: false },
-              { name: "CRM", desc: "Integre HubSpot, Pipedrive, Salesforce e outros CRMs", icon: sourceIcons.crm, live: false },
-              { name: "Google Agenda", desc: "Resumo de compromissos, reuniões e lembretes", icon: sourceIcons.calendar, live: false },
-              { name: "Preços de Produtos", desc: "Monitore preços em lojas online e marketplaces", icon: sourceIcons.shopping, live: false },
+              { name: "Upload de Arquivos", desc: "Envie PDFs, TXT, CSV e imagens como fonte de conte\u00fado", icon: sourceIcons.file, live: true },
+              { name: "Instagram", desc: "Monitore perfis e hashtags para conte\u00fado relevante", icon: sourceIcons.instagram, live: false },
+              { name: "Twitter / X", desc: "Acompanhe perfis, listas e trending topics", icon: sourceIcons.twitter, live: false },
+              { name: "Telegram", desc: "Canais e grupos monitorados automaticamente", icon: sourceIcons.telegram, live: false },
+              { name: "Email", desc: "Newsletters e emails importantes viram podcast", icon: sourceIcons.email, live: false },
             ].map((s, i) => (
               <Reveal key={s.name} delay={i * 80}>
                 <SourceCard>
@@ -366,18 +460,18 @@ export default function LandingPage() {
         <div className="lp-section-inner">
           <Reveal>
             <p className="lp-overline">Recursos</p>
-            <h2 className="lp-section-title">Tudo que você precisa. Nada que não precisa.</h2>
+            <h2 className="lp-section-title">Tudo que voc&#234; precisa. Nada que n&#227;o precisa.</h2>
           </Reveal>
           <div className="lp-features-grid">
             {[
-              { title: "10 estilos de podcast", desc: "Aula, jornal, debate, motivacional e mais 6 opções.", icon: "🎭" },
-              { title: "Vozes naturais", desc: "Gemini TTS com vozes em portugues que parecem humanas.", icon: "🎙️" },
-              { title: "Upload de arquivos", desc: "Envie PDFs, imagens e textos como fonte de conteúdo.", icon: "📎" },
-              { title: "Entrega no WhatsApp", desc: "Receba o áudio pronto direto no seu numero.", icon: "💬" },
-              { title: "Agendamento flexível", desc: "Defina horarios personalizados — 7h, 12h, 18h.", icon: "⏰" },
-              { title: "Chat com o resumo", desc: "Faca perguntas sobre o conteúdo do podcast.", icon: "🤖" },
-              { title: "Tema dark/light", desc: "Interface premium que se adapta a sua preferência.", icon: "🎨" },
-              { title: "PWA instalável", desc: "Instale como app no celular. Funciona offline.", icon: "📲" },
+              { title: "10 estilos de podcast com IA", desc: "Conversa, aula, jornal, debate, motivacional, storytelling, entrevista e mais.", icon: "\uD83C\uDFAD" },
+              { title: "\u00c1udio por Gemini TTS", desc: "Vozes naturais em portugu\u00eas que parecem humanas. Qualidade profissional.", icon: "\uD83C\uDFA4" },
+              { title: "Entrega autom\u00e1tica via WhatsApp", desc: "Receba o \u00e1udio pronto direto no seu n\u00famero, nos hor\u00e1rios que definir.", icon: "\uD83D\uDCAC" },
+              { title: "Player com controle de velocidade", desc: "Ou\u00e7a em 1x, 1.5x ou 2x. Ajuste como preferir.", icon: "\u25b6\ufe0f" },
+              { title: "Progresso salvo automaticamente", desc: "Pause e continue de onde parou, em qualquer dispositivo.", icon: "\uD83D\uDCBE" },
+              { title: "PWA \u2014 instale no celular", desc: "Funciona como app nativo. Instale direto do navegador.", icon: "\uD83D\uDCF2" },
+              { title: "M\u00faltiplas fontes simult\u00e2neas", desc: "Combine WhatsApp + YouTube + RSS + APIs em um \u00fanico podcast.", icon: "\uD83D\uDD17" },
+              { title: "Personaliza\u00e7\u00e3o por IA", desc: "A IA aprende suas prefer\u00eancias e filtra o que realmente importa.", icon: "\uD83E\uDD16" },
             ].map((f, i) => (<Reveal key={f.title} delay={i * 80}><div className="lp-feature-card"><span className="lp-feature-emoji">{f.icon}</span><h4>{f.title}</h4><p>{f.desc}</p></div></Reveal>))}
           </div>
         </div>
@@ -392,14 +486,14 @@ export default function LandingPage() {
           </Reveal>
           <div className="lp-testimonials">
             {[
-              { name: "Ricardo M.", role: "Empresario", text: "Eu recebia mais de 200 mensagens por dia em grupos de negócios. Agora ouco tudo resumido em 5 minutos no caminho do trabalho." },
-              { name: "Camila S.", role: "Jornalista", text: "Monitoro 12 feeds de notícias e 3 canais do YouTube. O PodcastIA me poupa pelo menos 2 horas por dia." },
-              { name: "Alex P.", role: "Dev / Maker", text: "O webhook e genial. Conecto com meu n8n e recebo podcast das métricas do meu SaaS toda manhã." },
-              { name: "Pastor Marcos", role: "Lider religioso", text: "Uso o estilo Estudo Bíblico com feeds de devocionais. Recebo reflexoes profundas toda manhã no WhatsApp." },
+              { name: "Ricardo M.", role: "Empres\u00e1rio", text: "Recebia mais de 200 mensagens por dia em grupos. Agora recebo um podcast resumido no WhatsApp toda manh\u00e3 no caminho do trabalho. Uso o estilo Resumo Executivo e ganho 2 horas por dia." },
+              { name: "Camila S.", role: "Jornalista", text: "Monitoro 12 feeds RSS e 3 canais do YouTube. A IA assiste os v\u00eddeos e transforma tudo em podcast jornal\u00edstico. Me poupa pelo menos 2 horas por dia." },
+              { name: "Alex P.", role: "Dev / Maker", text: "O webhook \u00e9 genial. Conecto com meu n8n e recebo podcast das m\u00e9tricas do meu SaaS toda manh\u00e3. O estilo Conversa deixa tudo mais f\u00e1cil de absorver." },
+              { name: "Pastor Marcos", role: "L\u00edder religioso", text: "Uso o estilo Estudo B\u00edblico com feeds de devocionais. Recebo reflex\u00f5es profundas toda manh\u00e3 no WhatsApp. A voz natural do Gemini \u00e9 impressionante." },
             ].map((t, i) => (
               <Reveal key={t.name} delay={i * 120}>
                 <div className="lp-testimonial">
-                  <div className="lp-testimonial-stars lp-stars-glow">★★★★★</div>
+                  <div className="lp-testimonial-stars lp-stars-glow">{"\u2605\u2605\u2605\u2605\u2605"}</div>
                   <p className="lp-testimonial-text">&ldquo;{t.text}&rdquo;</p>
                   <div className="lp-testimonial-author">
                     <div className="lp-testimonial-avatar">{t.name.charAt(0)}</div>
@@ -418,7 +512,7 @@ export default function LandingPage() {
           <Reveal>
             <p className="lp-overline">Planos</p>
             <h2 className="lp-section-title">Simples, transparente, sem surpresas</h2>
-            <p className="lp-section-sub">Cancele quando quiser. Todos os planos incluem 7 dias gratis.</p>
+            <p className="lp-section-sub">Cancele quando quiser. Todos os planos pagos incluem 7 dias gr&#225;tis.</p>
           </Reveal>
           <div className="lp-pricing-grid">
             {plans.map((plan, i) => (
@@ -427,13 +521,17 @@ export default function LandingPage() {
                   {plan.featured && (<><div className="lp-pricing-glow-border" /><div className="lp-pricing-badge">{(plan as any).badge}</div></>)}
                   <h3>{plan.name}</h3>
                   <p className="lp-pricing-desc">{plan.desc}</p>
-                  <div className="lp-pricing-price"><span className="lp-pricing-currency">R$</span><span className="lp-pricing-amount">{plan.price}</span><span className="lp-pricing-period">/mês</span></div>
+                  <div className="lp-pricing-price"><span className="lp-pricing-currency">R$</span><span className="lp-pricing-amount">{plan.price}</span><span className="lp-pricing-period">/m&#234;s</span></div>
                   <ul className="lp-pricing-features">{plan.features.map((f) => (<li key={f}><Check /> {f}</li>))}</ul>
                   <Link href="/register" className={`btn ${plan.featured ? "btn-primary" : "btn-secondary"}`} style={{ width: "100%", justifyContent: "center" }}>{plan.cta}</Link>
                 </div>
               </Reveal>
             ))}
           </div>
+          {/* Custom Plan Calculator */}
+          <Reveal delay={500}>
+            <CustomPlanCalculator />
+          </Reveal>
         </div>
       </section>
 
@@ -441,7 +539,7 @@ export default function LandingPage() {
       <section id="faq" className="lp-section lp-section-alt">
         <div className="lp-section-inner lp-section-narrow">
           <Reveal>
-            <p className="lp-overline">Dúvidas frequentes</p>
+            <p className="lp-overline">D&#250;vidas frequentes</p>
             <h2 className="lp-section-title">FAQ</h2>
           </Reveal>
           <div className="lp-faq-list">
@@ -455,15 +553,15 @@ export default function LandingPage() {
         <CtaParticles />
         <div className="lp-cta-inner">
           <Reveal><h2>Pronto para ouvir em vez de ler?</h2></Reveal>
-          <Reveal delay={100}><p>Crie sua conta gratis em 30 segundos. Sem cartão de crédito.</p></Reveal>
-          <Reveal delay={200}><Link href="/register" className="btn btn-primary btn-lg">Começar grátis agora<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></Link></Reveal>
+          <Reveal delay={100}><p>Crie sua conta gr&#225;tis em 30 segundos. Sem cart&#227;o de cr&#233;dito.</p></Reveal>
+          <Reveal delay={200}><Link href="/register" className="btn btn-primary btn-lg">Come&#231;ar gr&#225;tis agora<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></Link></Reveal>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
-          <div className="lp-footer-brand"><span className="lp-logo">PodcastIA</span><p>Transforme informação em áudio com IA.</p></div>
+          <div className="lp-footer-brand"><span className="lp-logo">PodcastIA</span><p>Transforme qualquer fonte em podcasts personalizados com IA.</p></div>
           <div className="lp-footer-links">
             <div><h4>Produto</h4><a href="#como-funciona">Como funciona</a><a href="#estilos">Estilos</a><a href="#fontes">Fontes</a><a href="#planos">Planos</a><a href="#faq">FAQ</a></div>
             <div><h4>Conta</h4><Link href="/login">Entrar</Link><Link href="/register">Criar conta</Link></div>

@@ -162,21 +162,24 @@ async function processDigest(job: Job<DigestJobData>) {
       return;
     }
 
-    // 5. Group messages by source/group
-    const groupedMessages: Record<string, { sender: string; text: string; time: string }[]> = {};
-    for (const msg of messages) {
-      const group = msg.group_name || "Sem grupo";
-      if (!groupedMessages[group]) groupedMessages[group] = [];
-      groupedMessages[group].push({
-        sender: msg.sender_name,
-        text: msg.content,
-        time: new Date(msg.captured_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      });
+    // 5. Build source_id -> podcast_theme map
+    const sourceThemeMap: Record<string, string> = {};
+    for (const src of (allSources || [])) {
+      sourceThemeMap[src.id] = src.podcast_theme || "conversa";
     }
 
-    const groups = Object.entries(groupedMessages).map(([groupName, msgs]) => ({ groupName, messages: msgs }));
+    // 5b. Group messages by theme, then by source/group within each theme
+    const messagesByTheme: Record<string, typeof messages> = {};
+    for (const msg of messages) {
+      const theme = sourceThemeMap[msg.source_connection_id] || "conversa";
+      if (!messagesByTheme[theme]) messagesByTheme[theme] = [];
+      messagesByTheme[theme].push(msg);
+    }
 
-    // 5b. Fetch user context from news_preferences for personalization
+    const uniqueThemes = Object.keys(messagesByTheme);
+    console.log(`[Worker] Found ${uniqueThemes.length} unique theme(s): ${uniqueThemes.join(", ")} across ${messages.length} messages`);
+
+    // 5c. Fetch user context from news_preferences for personalization
     const { data: newsPrefs } = await supabaseAdmin
       .from("news_preferences")
       .select("parsed_filters, topics, keywords")
@@ -190,7 +193,7 @@ async function processDigest(job: Job<DigestJobData>) {
         .join("\n");
     }
 
-    // 5c. Get user plan for depth settings
+    // 5d. Get user plan for depth settings
     const { data: userRecord } = await supabaseAdmin
       .from("users")
       .select("plan")
@@ -198,49 +201,7 @@ async function processDigest(job: Job<DigestJobData>) {
       .single();
 
     const plan = userRecord?.plan || "free";
-    // Business/Pro get longer, deeper podcasts
     const maxChars = plan === "business" ? 7000 : plan === "pro" ? 5000 : 3000;
-
-    // 6. Generate script via GPT
-    const tScript = Date.now();
-    console.log(`[Worker] Generating script for ${messages.length} messages across ${groups.length} groups (plan: ${plan}, maxChars: ${maxChars})`);
-    const script = await generatePodcastScript(
-      groups,
-      userProfile?.name || "ouvinte",
-      (settings?.audio_style as "casual" | "formal") || "casual",
-      maxChars,
-      userContext,
-      settings?.podcast_theme || "conversa"
-    );
-    console.log(`[Worker][TIMING] Script generation: ${Date.now() - tScript}ms (${script.length} chars)`);
-
-    // 6b. Generate content summary (2-line overview)
-    const contentSummary = generateContentSummary(script, groups);
-    console.log(`[Worker] Content summary: ${contentSummary}`);
-
-    // 7. Generate audio via Gemini TTS + ffmpeg
-    const tTTS = Date.now();
-    console.log(`[Worker] Generating audio...`);
-    const theme = settings?.podcast_theme || "conversa";
-    const { audioPath, duration } = await generateAudio(script, {
-      speaker1Voice: settings?.audio_voice || "Sadachbia",
-    }, theme);
-    console.log(`[Worker][TIMING] TTS generation: ${Date.now() - tTTS}ms (duration: ${duration}s)`);
-
-    // 8. Upload to Supabase Storage
-    const tUpload = Date.now();
-    const audioB64 = audioToBase64(audioPath);
-    const audioBuffer = Buffer.from(audioB64, "base64");
-    const audioFileName = `digests/${userId}/${jobId}.ogg`;
-
-    const { error: storageErr } = await supabaseAdmin.storage.from("podcasts").upload(audioFileName, audioBuffer, {
-      contentType: "audio/ogg",
-      upsert: true,
-    });
-    if (storageErr) throw new Error(`Storage upload failed: ${storageErr.message}`);
-
-    const { data: signedUrl } = await supabaseAdmin.storage.from("podcasts").createSignedUrl(audioFileName, 86400);
-    console.log(`[Worker][TIMING] Upload to storage: ${Date.now() - tUpload}ms`);
 
     const themeLabels: Record<string, string> = {
       conversa: "Conversa do dia",
@@ -254,72 +215,146 @@ async function processDigest(job: Job<DigestJobData>) {
       entrevista: "Entrevista do dia",
       motivacional: "Motivacional do dia",
     };
-    const digestTitle = `${themeLabels[theme] || "Resumo do dia"} - ${new Date().toLocaleDateString("pt-BR")}`;
+    const themeEmojis: Record<string, string> = { conversa: "\uD83D\uDCAC", aula: "\uD83C\uDF93", jornalistico: "\uD83D\uDCF0", resumo: "\uD83D\uDCCB", comentarios: "\uD83D\uDDE3\uFE0F", storytelling: "\uD83D\uDCD6", estudo_biblico: "\uD83D\uDCD5", debate: "\u2694\uFE0F", entrevista: "\uD83C\uDF99\uFE0F", motivacional: "\uD83D\uDD25" };
 
-    // 9. Save digest (now with content_summary)
-    const { data: digest } = await supabaseAdmin
-      .from("digests")
-      .insert({
-        user_id: userId,
-        job_id: jobId,
-        title: digestTitle,
-        text_content: script,
-        content_summary: contentSummary,
-        audio_url: signedUrl?.signedUrl || "",
-        audio_duration_seconds: duration,
-        sources_summary: {
-          totalMessages: messages.length,
-          groups: groups.map((g) => ({ name: g.groupName, count: g.messages.length })),
-        },
-      })
-      .select()
-      .single();
+    const allDigestIds: string[] = [];
+    const allMessageIds: string[] = [];
+    let totalDuration = 0;
+    let totalGroups = 0;
 
-    // 10. Deliver via WhatsApp (with retry logic for flaky UAZAPI)
-    if (settings?.delivery_channel === "whatsapp" && deliveryNumber && instanceToken) {
-      const tDeliver = Date.now();
-      const themeEmojis: Record<string, string> = { conversa: "\uD83D\uDCAC", aula: "\uD83C\uDF93", jornalistico: "\uD83D\uDCF0", resumo: "\uD83D\uDCCB", comentarios: "\uD83D\uDDE3\uFE0F", storytelling: "\uD83D\uDCD6", estudo_biblico: "\uD83D\uDCD5", debate: "\u2694\uFE0F", entrevista: "\uD83C\uDF99\uFE0F", motivacional: "\uD83D\uDD25" };
-      const themeEmoji = themeEmojis[theme] || "\uD83C\uDF99";
-      const callText = `${themeEmoji} *PodcastIA* \u2014 ${themeLabels[theme] || "Seu resumo"} chegou!
+    // 6. Generate one podcast PER THEME
+    for (const theme of uniqueThemes) {
+      const themeMsgs = messagesByTheme[theme];
+      console.log(`[Worker] === Generating podcast for theme "${theme}" with ${themeMsgs.length} messages ===`);
 
-\uD83D\uDCCA ${messages.length} mensagens de ${groups.length} fonte(s)
+      // Group messages by source/group
+      const groupedMessages: Record<string, { sender: string; text: string; time: string }[]> = {};
+      for (const msg of themeMsgs) {
+        const group = msg.group_name || "Sem grupo";
+        if (!groupedMessages[group]) groupedMessages[group] = [];
+        groupedMessages[group].push({
+          sender: msg.sender_name,
+          text: msg.content,
+          time: new Date(msg.captured_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        });
+      }
+
+      const groups = Object.entries(groupedMessages).map(([groupName, msgs]) => ({ groupName, messages: msgs }));
+      totalGroups += groups.length;
+
+      // Generate script
+      const tScript = Date.now();
+      console.log(`[Worker] Generating script for theme "${theme}": ${themeMsgs.length} msgs, ${groups.length} groups (plan: ${plan}, maxChars: ${maxChars})`);
+      const script = await generatePodcastScript(
+        groups,
+        userProfile?.name || "ouvinte",
+        (settings?.audio_style as "casual" | "formal") || "casual",
+        maxChars,
+        userContext,
+        theme
+      );
+      console.log(`[Worker][TIMING] Script generation (${theme}): ${Date.now() - tScript}ms (${script.length} chars)`);
+
+      const contentSummary = generateContentSummary(script, groups);
+      console.log(`[Worker] Content summary (${theme}): ${contentSummary}`);
+
+      // Generate audio
+      const tTTS = Date.now();
+      console.log(`[Worker] Generating audio for theme "${theme}"...`);
+      const { audioPath, duration } = await generateAudio(script, {
+        speaker1Voice: settings?.audio_voice || "Sadachbia",
+      }, theme);
+      console.log(`[Worker][TIMING] TTS generation (${theme}): ${Date.now() - tTTS}ms (duration: ${duration}s)`);
+      totalDuration += duration;
+
+      // Upload to storage
+      const tUpload = Date.now();
+      const audioB64 = audioToBase64(audioPath);
+      const audioBuffer = Buffer.from(audioB64, "base64");
+      const themeSuffix = uniqueThemes.length > 1 ? `_${theme}` : "";
+      const audioFileName = `digests/${userId}/${jobId}${themeSuffix}.ogg`;
+
+      const { error: storageErr } = await supabaseAdmin.storage.from("podcasts").upload(audioFileName, audioBuffer, {
+        contentType: "audio/ogg",
+        upsert: true,
+      });
+      if (storageErr) throw new Error(`Storage upload failed (${theme}): ${storageErr.message}`);
+
+      const { data: signedUrl } = await supabaseAdmin.storage.from("podcasts").createSignedUrl(audioFileName, 86400);
+      console.log(`[Worker][TIMING] Upload to storage (${theme}): ${Date.now() - tUpload}ms`);
+
+      const digestTitle = `${themeLabels[theme] || "Resumo do dia"} - ${new Date().toLocaleDateString("pt-BR")}`;
+
+      // Save digest
+      const { data: digest } = await supabaseAdmin
+        .from("digests")
+        .insert({
+          user_id: userId,
+          job_id: jobId,
+          title: digestTitle,
+          text_content: script,
+          content_summary: contentSummary,
+          audio_url: signedUrl?.signedUrl || "",
+          audio_duration_seconds: duration,
+          sources_summary: {
+            theme,
+            totalMessages: themeMsgs.length,
+            groups: groups.map((g) => ({ name: g.groupName, count: g.messages.length })),
+          },
+        })
+        .select()
+        .single();
+
+      if (digest?.id) allDigestIds.push(digest.id);
+
+      // Deliver via WhatsApp
+      if (settings?.delivery_channel === "whatsapp" && deliveryNumber && instanceToken) {
+        const tDeliver = Date.now();
+        const themeEmoji = themeEmojis[theme] || "\uD83C\uDF99";
+        const multiLabel = uniqueThemes.length > 1 ? ` (${uniqueThemes.indexOf(theme) + 1}/${uniqueThemes.length})` : "";
+        const callText = `${themeEmoji} *PodcastIA* \u2014 ${themeLabels[theme] || "Seu resumo"} chegou!${multiLabel}
+
+\uD83D\uDCCA ${themeMsgs.length} mensagens de ${groups.length} fonte(s)
 \u23F1 Dura\u00E7\u00E3o: ${Math.floor(duration / 60)}min ${duration % 60}s
 
 ${contentSummary}
 
 Ou\u00E7a agora:`;
 
-      await withRetry(
-        () => sendWhatsAppText(deliveryNumber, callText, instanceToken),
-        "WhatsApp text delivery",
-        2, 3000
-      );
-      await withRetry(
-        () => sendWhatsAppAudio(deliveryNumber, audioB64, instanceToken),
-        "WhatsApp audio delivery",
-        2, 3000
-      );
+        await withRetry(
+          () => sendWhatsAppText(deliveryNumber, callText, instanceToken),
+          `WhatsApp text delivery (${theme})`,
+          2, 3000
+        );
+        await withRetry(
+          () => sendWhatsAppAudio(deliveryNumber, audioB64, instanceToken),
+          `WhatsApp audio delivery (${theme})`,
+          2, 3000
+        );
 
-      await supabaseAdmin.from("digests").update({ delivered_at: new Date().toISOString() }).eq("id", digest?.id);
-      console.log(`[Worker][TIMING] WhatsApp delivery: ${Date.now() - tDeliver}ms`);
+        await supabaseAdmin.from("digests").update({ delivered_at: new Date().toISOString() }).eq("id", digest?.id);
+        console.log(`[Worker][TIMING] WhatsApp delivery (${theme}): ${Date.now() - tDeliver}ms`);
+      }
+
+      // Mark this theme's messages as processed
+      const themeMsgIds = themeMsgs.map((m: any) => m.id);
+      allMessageIds.push(...themeMsgIds);
+      await supabaseAdmin
+        .from("captured_messages")
+        .update({ processed: true, digest_id: digest?.id })
+        .in("id", themeMsgIds);
+
+      try { unlinkSync(audioPath); } catch (err: any) { console.error(`[Worker] Failed to cleanup audio file:`, err.message); }
     }
-
-    // 11. Mark messages as processed
-    await supabaseAdmin
-      .from("captured_messages")
-      .update({ processed: true, digest_id: digest?.id })
-      .in("id", messages.map((m) => m.id));
 
     // 12. Mark job done
     await supabaseAdmin
       .from("digest_jobs")
-      .update({ status: "done", completed_at: new Date().toISOString(), sources_used: { messageCount: messages.length, groupCount: groups.length } })
+      .update({ status: "done", completed_at: new Date().toISOString(), sources_used: { messageCount: messages.length, groupCount: totalGroups, themes: uniqueThemes } })
       .eq("id", jobId);
 
-    try { unlinkSync(audioPath); } catch (err: any) { console.error(`[Worker] Failed to cleanup audio file:`, err.message); }
-
     const totalTime = Date.now() - t0;
-    console.log(`[Worker] Digest ${jobId} completed! Total: ${totalTime}ms (${(totalTime / 1000).toFixed(1)}s), Duration: ${duration}s, delivered to ${deliveryNumber}`);
+    console.log(`[Worker] Digest ${jobId} completed! ${uniqueThemes.length} theme(s), Total: ${totalTime}ms (${(totalTime / 1000).toFixed(1)}s), Duration: ${totalDuration}s, delivered to ${deliveryNumber}`);
   } catch (err: any) {
     console.error(`[Worker] Digest ${jobId} failed after ${Date.now() - t0}ms:`, err);
     await supabaseAdmin.from("digest_jobs").update({ status: "failed", error_message: err.message }).eq("id", jobId);

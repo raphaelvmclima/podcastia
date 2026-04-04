@@ -9,6 +9,7 @@ interface Source {
   name: string;
   active: boolean;
   config?: Record<string, any>;
+  podcast_theme?: string;
   created_at: string;
 }
 
@@ -281,6 +282,21 @@ const FORM_FIELDS: Record<string, FormField[]> = {
 
 const COMING_SOON = new Set(["instagram", "twitter", "telegram", "email"]);
 
+const PODCAST_THEMES = [
+  { id: "conversa", name: "Conversa", icon: "\u{1F4AC}", desc: "Dois hosts conversando naturalmente" },
+  { id: "aula", name: "Aula", icon: "\u{1F393}", desc: "Professor explicando de forma did\u00e1tica" },
+  { id: "jornalistico", name: "Jornal\u00edstico", icon: "\u{1F4F0}", desc: "Formato telejornal profissional" },
+  { id: "resumo", name: "Resumo Executivo", icon: "\u{1F4CB}", desc: "Direto ao ponto, focado em a\u00e7\u00e3o" },
+  { id: "comentarios", name: "Coment\u00e1rios", icon: "\u{1F5E3}\uFE0F", desc: "An\u00e1lise opinativa com debates" },
+  { id: "storytelling", name: "Storytelling", icon: "\u{1F4D6}", desc: "Not\u00edcias como hist\u00f3rias envolventes" },
+  { id: "estudo_biblico", name: "Estudo B\u00edblico", icon: "\u{1F4D5}", desc: "Reflex\u00f5es com base b\u00edblica" },
+  { id: "debate", name: "Debate", icon: "\u2694\uFE0F", desc: "Hosts debatendo com posi\u00e7\u00f5es opostas" },
+  { id: "entrevista", name: "Entrevista", icon: "\u{1F3A4}", desc: "Formato pergunta e resposta" },
+  { id: "motivacional", name: "Motivacional", icon: "\u{1F525}", desc: "Conte\u00fado inspirador e pr\u00e1tico" },
+];
+
+
+
 export default function FontesPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
@@ -297,6 +313,9 @@ export default function FontesPage() {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState("conversa");
+  const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
+  const [editingThemeValue, setEditingThemeValue] = useState("conversa");
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
@@ -347,6 +366,7 @@ export default function FontesPage() {
     setActivePanel(typeId);
     setFormName("");
     setFormConfig(typeId === "http_request" ? { method: "GET" } : {});
+    setSelectedTheme("conversa");
   };
 
   const loadGroups = async (search?: string, filter?: string) => {
@@ -412,7 +432,7 @@ export default function FontesPage() {
     try {
       await api("/api/sources/whatsapp/groups", {
         method: "POST",
-        body: JSON.stringify({ groups: selectedGroups.map((g) => ({ id: g.id, name: g.name })) }),
+        body: JSON.stringify({ groups: selectedGroups.map((g) => ({ id: g.id, name: g.name })), podcast_theme: selectedTheme }),
       });
       setSelectedGroups([]);
       setActivePanel(null);
@@ -445,7 +465,7 @@ export default function FontesPage() {
       }
       const res = await api("/api/sources", {
         method: "POST",
-        body: JSON.stringify({ type: activePanel, name: formName, config: finalConfig }),
+        body: JSON.stringify({ type: activePanel, name: formName, config: finalConfig, podcast_theme: selectedTheme }),
       });
       setActivePanel(null);
       setShowTypeSelector(false);
@@ -824,6 +844,42 @@ export default function FontesPage() {
               })
             )}
           </div>
+          {/* Estilo do Podcast para WhatsApp */}
+          {selectedGroups.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginBottom: "6px", display: "block" }}>
+                Estilo do Podcast para estes grupos
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "6px" }}>
+                {PODCAST_THEMES.map((t) => {
+                  const sel = selectedTheme === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setSelectedTheme(t.id)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "8px 10px",
+                        border: `2px solid ${sel ? "var(--primary)" : "var(--border)"}`,
+                        borderRadius: "var(--radius-md)",
+                        background: sel ? "var(--primary-subtle)" : "var(--bg)",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        transition: "all 0.15s ease",
+                        width: "100%",
+                      }}
+                    >
+                      <span style={{ fontSize: "16px", flexShrink: 0 }}>{t.icon}</span>
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: sel ? 600 : 400, color: sel ? "var(--primary)" : "var(--fg)" }}>{t.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)" }}>
               {selectedGroups.length} selecionado{selectedGroups.length !== 1 ? "s" : ""}
@@ -1004,6 +1060,41 @@ export default function FontesPage() {
               </div>
             ))}
 
+            {/* Estilo do Podcast */}
+            <div>
+              <label style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginBottom: "6px", display: "block" }}>
+                Estilo do Podcast para esta fonte
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "6px" }}>
+                {PODCAST_THEMES.map((t) => {
+                  const sel = selectedTheme === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setSelectedTheme(t.id)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "8px 10px",
+                        border: `2px solid ${sel ? "var(--primary)" : "var(--border)"}`,
+                        borderRadius: "var(--radius-md)",
+                        background: sel ? "var(--primary-subtle)" : "var(--bg)",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        transition: "all 0.15s ease",
+                        width: "100%",
+                      }}
+                    >
+                      <span style={{ fontSize: "16px", flexShrink: 0 }}>{t.icon}</span>
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: sel ? 600 : 400, color: sel ? "var(--primary)" : "var(--fg)" }}>{t.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
               <button className="btn-ghost" onClick={() => setActivePanel(null)} style={{ fontSize: "var(--text-sm)" }}>
                 Cancelar
@@ -1080,11 +1171,23 @@ export default function FontesPage() {
                       <div style={{ fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--fg)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {source.name}
                       </div>
-                      <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-faint)" }}>
-                        {typeInfo?.name || source.type}
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-faint)", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        <span>{typeInfo?.name || source.type}</span>
                         {source.config?.url && (
-                          <span style={{ marginLeft: "6px", opacity: 0.7 }}>{source.config.url.length > 40 ? source.config.url.slice(0, 40) + "..." : source.config.url}</span>
+                          <span style={{ opacity: 0.7 }}>{source.config.url.length > 30 ? source.config.url.slice(0, 30) + "..." : source.config.url}</span>
                         )}
+                        {(() => {
+                          const th = PODCAST_THEMES.find((t) => t.id === (source.podcast_theme || "conversa"));
+                          return th ? (
+                            <span
+                              onClick={(e) => { e.stopPropagation(); setEditingThemeId(editingThemeId === source.id ? null : source.id); setEditingThemeValue(source.podcast_theme || "conversa"); }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 6px", borderRadius: "8px", background: "var(--primary-subtle)", color: "var(--primary)", fontSize: "10px", fontWeight: 500, cursor: "pointer", border: "1px solid var(--primary)", whiteSpace: "nowrap" }}
+                              title="Clique para alterar o estilo"
+                            >
+                              {th.icon} {th.name}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                     {/* Toggle */}
@@ -1157,6 +1260,51 @@ export default function FontesPage() {
                       >
                         {copiedUrl === source.id ? "Copiado!" : "Copiar"}
                       </button>
+                    </div>
+                  )}
+
+                  {/* Inline theme editor */}
+                  {editingThemeId === source.id && (
+                    <div style={{ marginTop: "8px", padding: "10px", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginBottom: "6px" }}>Alterar estilo do podcast:</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "4px" }}>
+                        {PODCAST_THEMES.map((t) => {
+                          const sel = editingThemeValue === t.id;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setEditingThemeValue(t.id)}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "5px 8px",
+                                border: `1.5px solid ${sel ? "var(--primary)" : "var(--border)"}`,
+                                borderRadius: "var(--radius-sm)",
+                                background: sel ? "var(--primary-subtle)" : "var(--bg)",
+                                cursor: "pointer",
+                                fontSize: "11px",
+                                fontWeight: sel ? 600 : 400,
+                                color: sel ? "var(--primary)" : "var(--fg)",
+                                transition: "all 0.15s",
+                              }}
+                            >
+                              <span>{t.icon}</span> {t.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px", marginTop: "8px" }}>
+                        <button className="btn-ghost" onClick={() => setEditingThemeId(null)} style={{ fontSize: "var(--text-xs)", padding: "4px 10px" }}>Cancelar</button>
+                        <button className="btn-primary" onClick={async () => {
+                          try {
+                            await api(`/api/sources/${source.id}/theme`, { method: "PATCH", body: JSON.stringify({ podcast_theme: editingThemeValue }) });
+                            setSources((prev) => prev.map((s) => s.id === source.id ? { ...s, podcast_theme: editingThemeValue } : s));
+                            setEditingThemeId(null);
+                          } catch { /* empty */ }
+                        }} style={{ fontSize: "var(--text-xs)", padding: "4px 10px" }}>Salvar</button>
+                      </div>
                     </div>
                   )}
                 </div>

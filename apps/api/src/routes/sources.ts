@@ -194,7 +194,7 @@ export async function sourcesRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/sources/whatsapp/groups", async (request, reply) => {
-    const { groups } = request.body as { groups: { id: string; name: string }[] };
+    const { groups, podcast_theme } = request.body as { groups: { id: string; name: string }[]; podcast_theme?: string };
     if (!groups?.length) return reply.status(400).send({ error: "Nenhum item selecionado" });
 
     const limits = getPlanLimits(request.userPlan);
@@ -219,6 +219,7 @@ export async function sourcesRoutes(app: FastifyInstance) {
       user_id: request.userId, type: "whatsapp" as const, name: g.name,
       config: { monitoredGroups: [g.id], groupId: g.id, instanceName: instName, instanceToken: token },
       is_active: true,
+      podcast_theme: podcast_theme || "conversa",
     }));
 
     const { data, error } = await supabaseAdmin.from("source_connections").insert(sources).select();
@@ -227,7 +228,7 @@ export async function sourcesRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/sources", async (request, reply) => {
-    const { type, name, config } = request.body as { type: string; name: string; config: any };
+    const { type, name, config, podcast_theme } = request.body as { type: string; name: string; config: any; podcast_theme?: string };
     const limits = getPlanLimits(request.userPlan);
     const { count } = await supabaseAdmin.from("source_connections").select("*", { count: "exact", head: true }).eq("user_id", request.userId).eq("is_active", true);
     if ((count || 0) >= limits.maxSources) return reply.status(403).send({ error: "Limite atingido" });
@@ -240,7 +241,7 @@ export async function sourcesRoutes(app: FastifyInstance) {
       finalConfig.webhook_url = `${process.env.APP_API_URL || "https://api-podcastia.solutionprime.com.br"}/api/webhooks/source/${token}`;
     }
 
-    const { data, error } = await supabaseAdmin.from("source_connections").insert({ user_id: request.userId, type, name, config: finalConfig, is_active: true }).select().single();
+    const { data, error } = await supabaseAdmin.from("source_connections").insert({ user_id: request.userId, type, name, config: finalConfig, is_active: true, podcast_theme: podcast_theme || "conversa" }).select().single();
     if (error) return reply.status(400).send({ error: error.message });
     return { source: data };
   });
@@ -255,6 +256,22 @@ export async function sourcesRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const { data: current } = await supabaseAdmin.from("source_connections").select("is_active").eq("id", id).eq("user_id", request.userId).single();
     const { data } = await supabaseAdmin.from("source_connections").update({ is_active: !current?.is_active }).eq("id", id).eq("user_id", request.userId).select().single();
+    return { source: data };
+  });
+
+
+  app.patch("/api/sources/:id/theme", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { podcast_theme } = request.body as { podcast_theme: string };
+    if (!podcast_theme) return reply.status(400).send({ error: "podcast_theme is required" });
+    const { data, error } = await supabaseAdmin
+      .from("source_connections")
+      .update({ podcast_theme })
+      .eq("id", id)
+      .eq("user_id", request.userId)
+      .select()
+      .single();
+    if (error) return reply.status(400).send({ error: error.message });
     return { source: data };
   });
 

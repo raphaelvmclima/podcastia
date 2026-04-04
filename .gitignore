@@ -27,3 +27,7 @@ Thumbs.db
 # Temporarios
 *.tmp
 *.swp
+*.bak
+resend-wa.mjs
+send-all-wa.mjs
+test-*.mjs
