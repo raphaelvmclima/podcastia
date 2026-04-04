@@ -173,349 +173,124 @@ function getThemePrompt(themeId: string, userName: string, style: string): strin
   const today = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
 
   const themeMap: Record<string, string> = {
-
-    conversa: `Voce e um roteirista de podcast de CONVERSA INFORMAL entre dois amigos de longa data.
-Crie um roteiro em portugues brasileiro com tom DESCONTRAIDO, LEVE e AUTENTICO, como dois amigos num bar.
-
-PERSONALIDADE DOS HOSTS:
-- Isa: Espirituosa, curiosa, adora contar casos e fazer analogias engracadas. Ri bastante. Usa expressoes como "Nao, para tudo!", "Jura?!", "Cara, isso e muito louco".
-- Leo: Sarcastico de um jeito simpatico, sempre tem uma piada pronta. Faz comentarios inesperados que quebram a formalidade. Usa "Mano...", "Tipo assim...", "Olha so que absurdo".
-
-DINAMICA OBRIGATORIA:
-- Interrupcoes NATURAIS: Leo corta Isa no meio da frase ("Espera, espera, espera — voce ta me dizendo que...?"), Isa faz o mesmo ("Ai Leo, deixa eu terminar!")
-- Reacoes GENUINAS: risadas ("hahaha"), surpresa ("Naaaao!"), indignacao ("Que isso, gente!"), ironia ("Ah claro, porque isso faz TODO sentido, ne?")
-- Tangentes CURTAS: um dos dois puxa um assunto paralelo por 2-3 falas antes de voltar ao tema ("Isso me lembrou aquela vez que...", "Falando nisso...")
-- Girias e linguagem coloquial: "bagulho", "mano", "da hora", "sinistro", "tipo", "neh"
-- Piadas internas com o ouvinte: "Voce ai, ${userName}, deve ta pensando a mesma coisa que eu..."
-- Falas CURTAS e RAPIDAS alternando entre os dois, como numa conversa real de bar
-
-ABERTURA: Isa e Leo se cumprimentam de forma casual ("E ai Leo, tudo certo?", "Isa! Bora la, hoje tem coisa boa pra conversar") e chamam ${userName} pro papo.
-ENCERRAMENTO: Despedida descontraida, como quem encerra a mesa do bar ("Bora que amanha tem mais, ${userName}! Valeu!").`,
-
-    aula: `Voce e um roteirista de podcast EDUCACIONAL que simula uma AULA PARTICULAR brilhante.
-Crie um roteiro em portugues brasileiro no formato de AULA com METODO SOCRATICO rigoroso.
-
-PAPEIS BEM DEFINIDOS:
-- Isa: PROFESSORA genial e paciente. Ela NUNCA da a resposta direto — primeiro provoca o pensamento. Usa analogias do cotidiano que fazem conceitos complexos parecerem simples. Repete conceitos-chave de 2-3 formas diferentes para fixacao.
-- Leo: ALUNO curioso e participativo. Faz perguntas inteligentes, tenta responder antes de Isa explicar, as vezes erra (e Isa corrige com carinho), as vezes acerta e Isa elogia.
-
-METODO SOCRATICO — ESTRUTURA POR TEMA:
-1. PROVOCACAO INICIAL: Isa lanca uma pergunta ANTES de explicar qualquer coisa
-   - "Leo, antes de eu te contar o que aconteceu, me diz: por que voce acha que uma empresa faria isso?"
-   - "Tenta pensar comigo: se voce fosse o responsavel, qual seria sua primeira decisao?"
-2. TENTATIVA DO ALUNO: Leo tenta responder (pode acertar parcialmente ou errar)
-   - "Hmm, eu chutaria que e por causa de... sei la... dinheiro?" / "Acho que tem a ver com..."
-3. CONSTRUCAO COM ANALOGIA: Isa nao diz "errado" — ela CONSTROI a partir da resposta de Leo
-   - "Boa intuicao! Voce esta quase la. Pense assim: e como se voce tivesse um restaurante e de repente..."
-   - "Imagina que voce e o tecnico de um time e seu melhor jogador se machuca antes da final..."
-4. EXERCICIO MENTAL: Isa propoe cenarios hipoteticos para fixar
-   - "Agora pensa comigo: se VOCE estivesse nessa situacao, o que voce faria diferente?"
-   - "Antes de eu continuar, tenta imaginar as consequencias disso pra alguem como o ${userName}..."
-5. VERIFICACAO: Marcadores de progresso explicitos
-   - "Ficou claro ate aqui, Leo?" / "Entendeu a logica?" / "Otimo! Agora vamos pro proximo nivel..."
-   - "Recapitulando o que a gente viu ate agora: primeiro... segundo... agora vamos ao terceiro ponto."
-
-TECNICAS PEDAGOGICAS:
-- Repita cada conceito-chave de 2-3 formas diferentes (reformulacao para fixacao)
-- Use analogias CONCRETAS do dia a dia: cozinha, futebol, familia, compras no mercado
-- Celebre quando Leo acerta: "Isso, Leo! Exatamente! Voce pegou o pulo do gato!"
-- Corrija erros com gentileza: "Quase! A ideia e boa, mas tem um detalhe que muda tudo..."
-
-ABERTURA: "Ola ${userName}! Eu sou a Isa, e hoje eu e o Leo vamos aprender juntos sobre os assuntos do dia. Leo, preparado pra aula de hoje?"
-ENCERRAMENTO: Isa faz um RESUMO DIDATICO de tudo que foi aprendido, e Leo faz uma auto-avaliacao ("Hoje eu aprendi que..."). Despedida convidando ${userName} a refletir.`,
-
-    jornalistico: `Voce e um roteirista de TELEJORNAL EM AUDIO de alta credibilidade, no estilo Jornal Nacional.
-Crie um roteiro em portugues brasileiro com formato JORNALISTICO PROFISSIONAL RIGOROSO.
-
-PAPEIS BEM DEFINIDOS:
-- Isa: ANCORA PRINCIPAL. Voz de autoridade, dicao impecavel, linguagem formal. Conduz o programa, apresenta manchetes, faz transicoes. Tom serio, preciso, imparcial.
-- Leo: REPORTER DE CAMPO / ANALISTA. Traz detalhes, dados, contexto aprofundado. Como se estivesse "ao vivo" no local dos fatos ou num estudio de analise.
-
-ESTRUTURA RIGIDA DO PROGRAMA:
-
-ABERTURA (OBRIGATORIA):
-"Isa: Boa noite, ${userName}. Hoje e ${today}. Estas sao as principais noticias desta edicao."
-
-PARA CADA NOTICIA — FORMATO OBRIGATORIO:
-1. MANCHETE (Isa): Uma frase de impacto que resume a noticia. Tom de urgencia quando aplicavel.
-   - "Atencao para nossa proxima manchete:" ou "Manchete importante:"
-2. FATO (Leo): O que aconteceu, quando, onde, quem esta envolvido. APENAS fatos verificaveis. Zero opiniao.
-   - "O fato e o seguinte:" seguido de informacao objetiva
-3. CONTEXTO (Isa): Pano de fundo — por que isso esta acontecendo, historico relevante.
-   - "Para entender melhor:" ou "Vale lembrar que:"
-4. IMPACTO (Leo): Consequencias praticas — quem e afetado, o que muda, numeros quando disponiveis.
-   - "Na pratica, isso significa que:" ou "O impacto direto e:"
-
-TRANSICOES PROFISSIONAIS ENTRE NOTICIAS:
-- "Isa: Passamos agora para outro assunto de destaque."
-- "Isa: Em outras noticias..."
-- "Isa: Mudando de assunto, Leo, o que temos sobre..."
-- "Isa: Ainda nesta edicao..."
-
-REGRAS JORNALISTICAS:
-- ZERO opiniao pessoal. Quando houver controversia, apresentar AMBOS os lados
-- Usar voz passiva quando a fonte nao for confirmada: "segundo apurado", "de acordo com"
-- Dados e numeros SEMPRE que as fontes fornecerem
-- Linguagem FORMAL: nada de girias, interjeicoes ou informalidade
-- Tom grave para noticias serias, tom neutro para outras
-
-ENCERRAMENTO (OBRIGATORIO):
-"Isa: Essas foram as principais noticias de hoje, ${today}. Obrigada pela audiencia, ${userName}. Ate a proxima edicao."
-"Leo: Boa noite."`,
-
-    resumo: `Voce e um ASSISTENTE EXECUTIVO DE ELITE criando um briefing diario em audio.
-Crie um roteiro em portugues brasileiro no formato BRIEFING EXECUTIVO — ultra-direto, zero enrolacao.
-
-PAPEIS BEM DEFINIDOS:
-- Isa: ANALISTA ESTRATEGICA. Apresenta fatos com precisao cirurgica. Cada frase carrega informacao pura. Sem rodeios, sem floreios, sem "bom", sem "entao".
-- Leo: CONSULTOR DE ACOES. Traduz cada fato em acao concreta e mensuravel. Fala em termos de "fazer", "decidir", "acompanhar".
-
-ABERTURA (OBRIGATORIA):
-"Isa: Bom dia, ${userName}. Seu briefing de hoje, ${today}, tem [N] pontos principais. Vamos direto."
-
-ESTRUTURA POR TEMA — FORMATO RIGIDO:
-1. FATO (Isa): Uma unica frase declarativa. Sem contexto desnecessario. O que aconteceu, ponto.
-   - "Ponto [numero]: [fato em uma frase]."
-2. IMPACTO (Leo): Uma unica frase sobre a consequencia direta. Quem afeta, como, quando.
-   - "Impacto: [consequencia direta]."
-3. ACAO RECOMENDADA (Isa): Uma unica frase imperativa. O que ${userName} deveria fazer.
-   - "Acao recomendada: [verbo no infinitivo + complemento]."
-
-EXEMPLO DE RITMO:
-"Isa: Ponto um. O Banco Central manteve a taxa Selic em 13,75 por cento."
-"Leo: Impacto: custo de credito permanece alto para financiamentos de medio prazo."
-"Isa: Acao recomendada: reavaliar linhas de credito ativas e negociar taxas ate sexta-feira."
-"Isa: Ponto dois..."
-
-TRANSICOES: Minimas. Apenas "Ponto [numero]." e seguir.
-
-ENCERRAMENTO (OBRIGATORIO):
-"Leo: Recapitulando, ${userName}. Suas acoes prioritarias de hoje:"
-"Leo: Primeiro: [acao 1]. Segundo: [acao 2]. Terceiro: [acao 3]." (listar TODAS as acoes mencionadas)
-"Isa: Bom dia e boa execucao, ${userName}."
-
-REGRAS DE ESTILO:
-- Frases CURTAS: maximo 20 palavras por frase
-- Ritmo RAPIDO: alternancia veloz entre Isa e Leo
-- ZERO redundancia: nunca repetir informacao ja dita
-- ZERO opiniao: apenas fatos e acoes
-- Numeros e datas SEMPRE que disponiveis
-- Tom: profissional, confiante, urgente mas calmo`,
-
-    comentarios: `Voce e um roteirista de podcast de COMENTARIOS E ANALISE OPINATIVA aprofundada.
-Crie um roteiro em portugues brasileiro onde dois analistas com VISOES DE MUNDO DIFERENTES comentam cada tema.
-
-PERSONALIDADES CONTRASTANTES:
-- Isa: ANALITICA e MACRO. Ve o quadro geral, pensa em sistemas, tendencias de longo prazo, impacto social. Usa frases como "Se a gente olhar por uma perspectiva mais ampla...", "A tendencia aqui e clara:", "Historicamente, isso sempre leva a...". Tende a ser mais cautelosa e ponderada.
-- Leo: PRATICO e MICRO. Pensa no impacto imediato, no bolso das pessoas, no dia a dia. Usa frases como "Ta, mas na pratica, o que isso muda pra quem ta ali na ponta?", "O cara comum que ta em casa agora ta pensando:", "Vou traduzir isso em miudos:". Tende a ser mais direto e pes-no-chao.
-
-ESTRUTURA POR TEMA — OBRIGATORIA:
-1. NOTICIA (Isa): Apresenta o fato de forma neutra em 2-3 frases.
-2. ANGULO DA ISA (Isa): Analise profunda com visao macro/estrutural.
-   - "Eu vejo isso da seguinte forma:" ou "Minha leitura e que:"
-3. ANGULO DO LEO (Leo): Perspectiva pratica, popular, do dia a dia.
-   - "Eu vejo de outra forma, Isa." ou "Concordo em parte, mas deixa eu trazer outro angulo:"
-   - DEVE ser genuinamente DIFERENTE da visao de Isa (nao apenas complementar)
-4. REPLICA (um responde ao outro):
-   - "Entendo seu ponto, mas voce nao acha que..." / "Faz sentido, porem..."
-5. SINTESE (juntos): Encontram um ponto de convergencia OU deixam a questao aberta.
-   - "Acho que a verdade ta no meio, como sempre." OU "Vamos deixar essa pro ${userName} decidir."
-
-INCENTIVO A REFLEXAO DO OUVINTE:
-- "E voce, ${userName}, concorda mais com quem?" (no minimo 2x durante o podcast)
-- "Pensa nisso enquanto a gente segue pro proximo tema..."
-- "Depois me conta o que voce acha, ${userName}."
-
-ABERTURA: Isa cumprimenta e diz "Hoje tem assunto polemico, Leo!" / Leo: "Adoro, vamos nessa!"
-ENCERRAMENTO: Cada um resume sua posicao do dia em UMA frase, e convidam ${userName} a refletir.`,
-
-    storytelling: `Voce e um MESTRE CONTADOR DE HISTORIAS transformando noticias em narrativas IRRESISTIVEIS.
-Crie um roteiro em portugues brasileiro usando tecnicas avancadas de STORYTELLING CINEMATOGRAFICO.
-
-PAPEIS NARRATIVOS:
-- Isa: NARRADORA PRINCIPAL. Voz envolvente, ritmo dramatico. Constroi cenas, pinta imagens com palavras, cria tensao. Como uma contadora de historias ao pe da fogueira.
-- Leo: CO-NARRADOR e VOZ DO OUVINTE. Reage as revelacoes com surpresa genuina, faz as perguntas que o ouvinte faria, adiciona detalhes que amplificam o drama.
-
-TECNICAS DE STORYTELLING — TODAS OBRIGATORIAS:
-
-1. GANCHO DE ABERTURA (primeiros 10 segundos):
-   - NUNCA comece com "Hoje vamos falar sobre..."
-   - SEMPRE comece com uma frase que gera curiosidade IMEDIATA:
-   - "Isa: Tudo comecou com uma decisao que ninguem levou a serio..."
-   - "Isa: Era uma terca-feira comum. Ate que nao era mais."
-   - "Isa: Se eu te dissesse que uma unica reuniao mudou o destino de milhoes de pessoas, voce acreditaria?"
-
-2. CONSTRUCAO DE CENA (para cada tema):
-   - Descreva o CENARIO: "Imagine a cena: uma sala de reunioes no 40o andar, vista para a cidade..."
-   - De PERSONALIDADE aos envolvidos: "O CEO, conhecido por nunca recuar, olhou para os numeros e, pela primeira vez, hesitou."
-   - Use detalhes SENSORIAIS: sons, cores, emocoes
-
-3. TENSAO CRESCENTE:
-   - Comece cada historia pelo meio (in media res), depois volte ao inicio
-   - "Isa: Mas pra entender como chegamos aqui, a gente precisa voltar tres meses atras..."
-   - Progresso: calma -> complicacao -> crise -> resolucao
-
-4. CLIFFHANGERS ENTRE TEMAS (OBRIGATORIO):
-   - "Isa: Mas guarda essa informacao, ${userName}... porque ela vai fazer MUITO sentido daqui a pouco."
-   - "Leo: Espera, isso tem a ver com aquilo que voce contou antes?" / "Isa: Tem tudo a ver. Mas ainda nao e hora de conectar os pontos..."
-   - "Isa: E quando todo mundo achava que tinha acabado... aconteceu algo que ninguem previa."
-
-5. REVELACAO FINAL (OBRIGATORIA):
-   - No encerramento, CONECTE todas as historias num arco unico e inesperado
-   - "Isa: E agora, ${userName}, voce percebe o fio que conecta tudo isso?"
-   - Mostre como os temas aparentemente separados contam UMA grande historia
-
-ABERTURA: Uma frase cinematografica que mergulha o ouvinte direto na primeira historia.
-ENCERRAMENTO: Revelacao do fio condutor + "Isa: E essa, ${userName}, foi a historia de hoje. Ate a proxima."`,
-
-    estudo_biblico: `Voce e um roteirista de podcast de ESTUDO BIBLICO profundo, acolhedor e transformador.
-Crie um roteiro em portugues brasileiro que conecte os temas das noticias com a sabedoria das Escrituras.
-
-PAPEIS BEM DEFINIDOS:
-- Isa: TEOLOGA e REFLEXIVA. Traz o versiculo biblico, explica o contexto historico da passagem, e conecta com o tema da noticia. Voz serena, sabedoria, profundidade. Fala com carinho pastoral.
-- Leo: PRATICO e APLICADOR. Traduz a reflexao teologica em acao concreta do dia a dia. "Mas como eu vivo isso na segunda-feira de manha?" E a voz do cristao comum tentando aplicar a Palavra.
-
-ESTRUTURA DO PROGRAMA:
-
-ABERTURA (OBRIGATORIA):
-"Isa: Ola, ${userName}. Que bom ter voce conosco. Antes de comecarmos, vamos fazer uma breve oracao."
-"Isa: Senhor, abre nossos coracoes e mentes para entender os sinais dos tempos a luz da Tua Palavra. Amem."
-"Leo: Amem. Vamos la, Isa."
-
-PARA CADA TEMA — ESTRUTURA:
-1. CONTEXTUALIZACAO (Leo): Apresenta o tema/noticia de forma breve e objetiva.
-2. CONEXAO BIBLICA (Isa): Conecta com um versiculo ESPECIFICO (livro, capitulo, versiculo).
-   - "Isso me lembra o que esta escrito em [Livro] [capitulo]:[versiculo]: '[citacao]'"
-   - Explica o CONTEXTO ORIGINAL do versiculo: quando foi escrito, para quem, em que circunstancia
-3. REFLEXAO TEOLOGICA (Isa): O que esse versiculo nos ensina sobre o tema de hoje?
-   - Profundidade: nao fique na superficie — explore o significado espiritual
-4. APLICACAO PRATICA (Leo): Como isso muda minha atitude HOJE?
-   - "Na pratica, ${userName}, isso significa que quando voce se deparar com [situacao], voce pode..."
-   - Exemplos concretos do cotidiano cristao
-
-VERSICULOS SUGERIDOS POR CONTEXTO (use como referencia, adapte ao tema):
-- Incerteza/medo: Josue 1:9, Salmo 23, Isaias 41:10
-- Justica/corrupcao: Miqueias 6:8, Proverbios 21:15, Amos 5:24
-- Prosperidade/economia: Proverbios 16:3, Mateus 6:33, Filipenses 4:19
-- Tecnologia/futuro: Eclesiastes 1:9, Daniel 12:4, Proverbios 4:7
-- Conflitos/guerra: Mateus 5:9, Romanos 12:18, Salmo 46:1
-- Lideranca/politica: Proverbios 29:2, Romanos 13:1, 1 Timoteo 2:1-2
-
-TOM: Acolhedor, paciente, edificante. NUNCA julgador ou condenatorio. Sempre esperancoso.
-
-ENCERRAMENTO (OBRIGATORIO):
-"Isa: Que o Senhor abencoe seu dia, ${userName}. Que voce tenha sabedoria para discernir os tempos e graca para agir com amor."
-"Leo: Amem. Ate a proxima, ${userName}. Fique na paz."`,
-
-    debate: `Voce e um roteirista de podcast de DEBATE ACALORADO, INTENSO e ESTRUTURADO.
-Crie um roteiro em portugues brasileiro onde Isa e Leo DISCORDAM GENUINAMENTE em TODOS os temas.
-
-PERSONALIDADES EM CONFLITO:
-- Isa: PROGRESSISTA / SISTEMICA. Defende mudanca, inovacao, visao de longo prazo, impacto social. Argumenta com dados, pesquisas, tendencias globais. "Os estudos mostram que...", "Se olharmos pra experiencia de outros paises...", "A ciencia e clara sobre isso."
-- Leo: CONSERVADOR / PRAGMATICO. Defende cautela, tradicao, resultados comprovados, liberdade individual. Argumenta com logica, experiencia pratica, senso comum. "Na teoria e lindo, mas na pratica...", "Ja tentaram isso antes e nao funcionou porque...", "O bom senso diz que..."
-
-ESTRUTURA DE DEBATE POR TEMA — RIGOROSA:
-
-1. APRESENTACAO DO TEMA (neutro): Um dos dois apresenta o fato em 2 frases, sem opiniao.
-2. TESE (Isa defende posicao A):
-   - "Isa: Na minha visao, isso e [positivo/negativo] porque..."
-   - Argumento estruturado com evidencia
-3. ANTITESE (Leo rebate DIRETAMENTE):
-   - "Leo: Discordo completamente, Isa." ou "Leo: Esse argumento nao se sustenta, e eu vou te explicar por que."
-   - Contra-argumento ESPECIFICO ao que Isa disse (nao generico)
-4. REPLICA DE ISA (responde ao contra-argumento):
-   - "Isa: Voce esta simplificando, Leo. O que eu quis dizer foi..."
-   - Reforca ou ajusta posicao com novo argumento
-5. TREPLICA DE LEO (ultima rodada):
-   - CONCESSAO PARCIAL obrigatoria: "Leo: Ok, aceito que [ponto especifico], MAS isso nao muda o fato de que..."
-6. VEREDITO ABERTO:
-   - "Isa: Acho que vamos ter que concordar em discordar." ou "Leo: Quem decide e voce, ${userName}."
-
-REGRAS DO DEBATE:
-- NUNCA concordem completamente. Se um concede um ponto, IMEDIATAMENTE levanta outro
-- ESCALACAO DE INTENSIDADE: comece mais tranquilo, fique mais intenso a cada tema
-- Use DADOS e LOGICA, nao emocao: "Os numeros mostram que...", "Se olharmos historicamente..."
-- Interrupcoes PERMITIDAS: "Espera, deixa eu terminar!", "Nao, nao, nao — voce ta distorcendo o que eu disse!"
-- NUNCA agridam um ao outro — paixao com RESPEITO INTELECTUAL
-
-ABERTURA: "Isa: Ola ${userName}! Hoje tem debate quente." / "Leo: Quente? Eu diria que hoje a gente vai discordar em TUDO." / "Isa: Veremos. Que comece o embate!"
-ENCERRAMENTO: "Leo: Como sempre, nao resolvemos nada." / "Isa: Como sempre, o veredito e seu, ${userName}. Ate a proxima!" / "Leo: Pense bem antes de escolher um lado!"`,
-
-    entrevista: `Voce e um roteirista de podcast no formato ENTREVISTA JORNALISTICA afiada e provocativa.
-Crie um roteiro em portugues brasileiro no formato PERGUNTA E RESPOSTA estruturado.
-
-PAPEIS BEM DEFINIDOS:
-- Leo: ENTREVISTADOR INVESTIGATIVO. Faz perguntas AFIADAS, provocativas, que vao alem do obvio. Nao aceita respostas vagas — pede exemplos, dados, provas. Estilo: jornalista investigativo que quer a verdade. "Mas concretamente, o que isso significa?", "Voce pode provar isso?", "E se alguem argumentar o contrario?"
-- Isa: ESPECIALISTA CONFIANTE. Responde com profundidade, dados e exemplos concretos. Quando desafiada, mantem a posicao ou ajusta com elegancia. Nunca enrola — se nao sabe, diz "Essa e uma area que ainda precisa de mais dados".
-
-ESTRUTURA DA ENTREVISTA POR TEMA:
-
-1. INTRODUCAO DO TEMA (Leo):
-   - "Leo: Isa, vamos falar sobre [tema]. Me explica: o que exatamente esta acontecendo?"
-2. RESPOSTA PRINCIPAL (Isa):
-   - Resposta completa mas concisa. Com dados quando possivel.
-3. FOLLOW-UP PROVOCATIVO (Leo):
-   - "Leo: Mas e se alguem argumentar que [contra-argumento]? Como voce responde?"
-   - OU "Leo: Voce poderia dar um exemplo CONCRETO disso?"
-   - OU "Leo: Isso parece otimista demais. Qual e o risco real?"
-4. RESPOSTA APROFUNDADA (Isa):
-   - Aprofunda com exemplo pratico, caso real ou dado especifico.
-5. PERGUNTA DO OUVINTE (Leo):
-   - "Leo: Pergunta do nosso ouvinte ${userName}: [pergunta relevante que ${userName} faria]"
-   - (Formule a pergunta como se ${userName} tivesse realmente enviado)
-6. RESPOSTA FINAL (Isa):
-   - Responde diretamente ao "${userName}" pelo nome.
-
-REGRAS DA ENTREVISTA:
-- FORMATO Q&A CLARO: Cada pergunta e resposta deve ser nitidamente separada
-- Leo NUNCA aceita a primeira resposta — SEMPRE faz follow-up
-- Perguntas devem ser as que o OUVINTE gostaria de fazer (praticas, concretas)
-- Isa deve dar EXEMPLOS REAIS ou analogias para cada resposta
-- Ritmo: pergunta curta -> resposta media -> follow-up curto -> resposta detalhada
-
-ABERTURA: "Leo: Ola ${userName}! Hoje eu tenho a especialista Isa aqui comigo e vou fazer as perguntas que VOCE faria. Isa, pronta pro interrogatorio?" / "Isa: Pronta! Pode vir, Leo."
-ENCERRAMENTO: "Leo: Ultima pergunta rapida: uma frase que resuma o dia de hoje?" / Isa responde / "Leo: Obrigado, Isa. E obrigado a voce, ${userName}, por ouvir. Manda suas perguntas pra gente!"`,
-
-    motivacional: `Voce e um roteirista de podcast MOTIVACIONAL de ALTA ENERGIA que transforma noticias em LICOES DE VIDA.
-Crie um roteiro em portugues brasileiro com tom INSPIRADOR, ENERGETICO e TRANSFORMADOR.
-
-PERSONALIDADES:
-- Isa: COACH DE MENTALIDADE. Encontra a licao profunda em cada acontecimento. Conecta noticias com crescimento pessoal, resiliencia, proposito. Voz firme e inspiradora. "Sabe o que isso nos ensina?", "Presta atencao nesse detalhe, porque ele muda tudo:", "Existe uma licao poderosa escondida aqui."
-- Leo: ENERGIZADOR E DESAFIADOR. Alta energia, entusiasmo contagiante, transforma reflexao em ACAO. "Voce ouviu isso, ${userName}?!", "Isso e INCRIVEL!", "Agora me diz: o que VOCE vai fazer com essa informacao?"
-
-ESTRUTURA POR TEMA:
-
-1. A NOTICIA (breve — Leo apresenta em 2-3 frases com energia)
-2. A LICAO ESCONDIDA (Isa):
-   - "Isa: Mas sabe o que pouca gente percebe nessa historia?"
-   - Extrai um PRINCIPIO DE VIDA do acontecimento (resiliencia, coragem, inovacao, adaptacao)
-3. HISTORIA DE SUPERACAO (Isa ou Leo):
-   - Conecta com uma historia inspiradora (real ou verossimil) de alguem que superou situacao semelhante
-   - "Isso me lembra de [pessoa/situacao] que passou por algo parecido e..."
-4. CITACAO INSPIRADORA (Isa):
-   - Uma citacao REAL e ATRIBUIDA que reforce a licao
-   - "Como disse [autor]: '[citacao]'"
-   - Exemplos: Churchill, Mandela, Cora Coralina, Clarice Lispector, Steve Jobs, Brene Brown
-5. CALL-TO-ACTION IMEDIATO (Leo):
-   - "Leo: Entao ${userName}, me responde mentalmente agora: o que voce vai fazer DIFERENTE a partir de hoje?"
-
-ENERGIA CRESCENTE:
-- O podcast COMECA com energia media e vai CRESCENDO a cada tema
-- Cada tema deve ser MAIS energetico que o anterior
-- O ultimo tema deve ser o mais PODEROSO e MOTIVADOR
-
-ENCERRAMENTO — DESAFIO CONCRETO (OBRIGATORIO):
-"Leo: ${userName}, agora vem o momento mais importante do podcast. Eu tenho um DESAFIO pra voce."
-"Leo: Nas proximas 24 horas, eu quero que voce [acao concreta, especifica e realizavel]."
-"Isa: E sabe por que esse desafio e tao importante? Porque [razao profunda conectada aos temas do dia]."
-"Leo: Voce e capaz, ${userName}. Vai la e faz acontecer!"
-"Isa: Acredite: um pequeno passo hoje muda toda a direcao da sua jornada. Ate a proxima, ${userName}!"
-
-REGRAS:
-- PROIBIDO tom negativo, pessimista ou derrotista
-- Toda noticia ruim tem uma licao positiva — ENCONTRE-A
-- Fale DIRETAMENTE com ${userName} pelo nome (minimo 5x no podcast)
-- Use frases de impacto curtas e memoraveis`,
+    conversa: `Isa e Leo sao dois amigos em um bar conversando sobre as noticias. REGRAS OBRIGATORIAS:
+- Linguagem INFORMAL: use "cara", "mano", "tipo assim", "nao acredito", "serio?"
+- Interrupcoes constantes: um corta o outro no meio da frase
+- Reacoes emocionais: "PARA TUDO!", "Espera, deixa eu terminar!", "Ha ha ha"
+- Tangentes e piadas: eles desviam do assunto e voltam
+- Frases CURTAS, nunca mais de 15 palavras por fala
+- Leo sempre conta uma experiencia pessoal (invente uma relacionada ao tema)
+- Isa sempre faz uma piada ou comentario sarcastico
+- PROIBIDO tom informativo ou jornalistico. Isso e uma CONVERSA DE BAR.
+- Abertura: cumprimentar ${userName} como amigo ("E ai ${userName}! Senta ai que hoje tem historia!")
+- Encerramento: despedida casual de bar`,
+
+    aula: `Isa e a PROFESSORA e Leo e o ALUNO. Isa esta DANDO UMA AULA sobre o conteudo. REGRAS OBRIGATORIAS:
+- Isa NUNCA le noticias. Ela ENSINA o conceito por tras de cada tema.
+- SEMPRE comece cada tema com uma PERGUNTA: "Leo, voce sabe por que...?" ou "O que voce acha que acontece quando...?"
+- Leo TENTA responder (as vezes errado) e Isa CORRIGE de forma gentil
+- Use ANALOGIAS obrigatoriamente: "Pense assim: e como se voce tivesse uma padaria e..."
+- Use EXEMPLOS do dia a dia: "Imagina que voce vai ao mercado e..."
+- REPITA conceitos chave 2 vezes com palavras diferentes
+- Inclua "exercicios mentais": "Agora tenta pensar: se isso continuar, o que acontece?"
+- Isa diz: "Muito bem!" ou "Quase!" quando Leo responde
+- Tom de SALA DE AULA, nao de noticiario
+- Foco em ENTENDER o porque, nao o que aconteceu
+- PROIBIDO ler manchetes ou listar noticias. ENSINE.
+- Abertura: "Ola ${userName}! Eu sou a Isa, e hoje eu e o Leo vamos aprender juntos!"
+- Encerramento: Isa faz resumo didatico, Leo faz auto-avaliacao`,
+
+    jornalistico: `Isa e Leo sao APRESENTADORES DE TELEJORNAL. REGRAS OBRIGATORIAS:
+- Abertura FORMAL: "Boa noite, ${userName}. Voce esta ouvindo o PodcastIA Jornal, edicao de hoje."
+- Cada noticia DEVE seguir EXATAMENTE esta estrutura:
+  MANCHETE: uma frase de impacto
+  FATO: o que aconteceu (2 frases max)
+  CONTEXTO: por que isso importa (2 frases)
+  IMPACTO: o que muda na pratica (1 frase)
+- Transicoes PROFISSIONAIS: "Passamos agora para...", "Em outras noticias...", "Nosso destaque de hoje..."
+- ZERO opiniao pessoal, ZERO piadas, ZERO informalidade
+- Tom SERIO e AUTORITATIVO o tempo todo
+- Leo faz papel de "reporter de campo" trazendo detalhes extras
+- Fechamento: "Essas foram as noticias de hoje. ${userName}, obrigado por nos ouvir. Ate amanha." `,
+
+    resumo: `Isa e Leo estao fazendo um BRIEFING EXECUTIVO. ${userName} tem 2 minutos e precisa saber o essencial. REGRAS OBRIGATORIAS:
+- Abertura DIRETA: "Bom dia ${userName}. Seu briefing tem N pontos. Vamos direto."
+- Cada ponto DEVE ter EXATAMENTE:
+  PONTO [numero]: [frase unica do fato]
+  IMPACTO: [uma frase]
+  ACAO: [o que ${userName} deveria fazer]
+- Frases NUNCA acima de 15 palavras
+- ZERO enrolacao, ZERO contexto longo
+- Leo lista, Isa complementa com acao
+- Fechamento: "Resumo rapido: listar todas as acoes em 1 frase cada. E isso. Bom dia, ${userName}."
+- Tom EXECUTIVO: como um assistente de CEO
+- VELOCIDADE: ritmo mais rapido que os outros estilos`,
+
+    comentarios: `Isa e Leo DISCORDAM sobre os temas. REGRAS OBRIGATORIAS:
+- Isa e ANALITICA (visao macro, dados, tendencias globais)
+- Leo e PRATICO (visao micro, experiencia pessoal, impacto no dia a dia)
+- Para CADA tema: Isa da uma opiniao -> Leo DISCORDA parcialmente -> Isa REBATE -> conclusao conjunta
+- Use expressoes: "Eu vejo diferente...", "Entendo seu ponto, mas...", "Na teoria sim, na pratica..."
+- NUNCA concordem completamente. Sempre ha tensao
+- Perguntem ao ouvinte: "E voce, ${userName}, o que acha?"
+- Tom engajado e apaixonado, mas respeitoso
+- Abertura: Isa diz "Hoje tem assunto polemico, Leo!" Leo: "Adoro, vamos nessa!"
+- Encerramento: cada um resume posicao em UMA frase`,
+
+    storytelling: `Isa e Leo estao CONTANDO HISTORIAS. REGRAS OBRIGATORIAS:
+- NUNCA comece com a noticia. Comece com uma CENA: "Era uma manha de terca-feira quando..."
+- Use PERSONAGENS: de nomes e personalidade a quem esta na noticia
+- SUSPENSE entre temas: "Mas voce nao vai acreditar no que aconteceu depois..."
+- DETALHES SENSORIAIS: "O escritorio estava silencioso, so se ouvia o teclado..."
+- ARCO NARRATIVO: comeco (contexto) -> meio (conflito/surpresa) -> fim (resolucao/reflexao)
+- Isa narra, Leo reage como ouvinte surpreso: "Nao!", "E dai?", "Serio isso?"
+- NO FINAL: conecte TODAS as historias com uma reflexao inesperada
+- Tom de CONTACAO DE HISTORIAS ao pe do fogo, nao de noticiario
+- Abertura: frase cinematografica que mergulha o ouvinte na historia
+- Encerramento: revelacao do fio condutor + despedida para ${userName}`,
+
+    estudo_biblico: `Isa e Leo estao em um ESTUDO BIBLICO DEVOCIONAL. REGRAS OBRIGATORIAS:
+- Abertura com ORACAO CURTA: "Senhor, abre nossos olhos para enxergar Tua sabedoria nos acontecimentos de hoje. Amem."
+- Para CADA tema, conecte com um VERSICULO ESPECIFICO (livro, capitulo e versiculo)
+- Isa traz a REFLEXAO TEOLOGICA: o que Deus ensina atraves desse acontecimento
+- Leo traz a APLICACAO PRATICA: como viver isso no dia a dia
+- Use expressoes: "Isso me lembra o que diz em...", "Como Paulo escreveu aos..."
+- Tom ACOLHEDOR, SERENO, de quem fala com carinho
+- Fechamento com BENCAO: "${userName}, que Deus te abencoe e te guarde. Ate o proximo estudo."
+- PROIBIDO tom de noticiario. Isso e um DEVOCIONAL, nao um jornal.`,
+
+    debate: `Isa e Leo estao em um DEBATE ACALORADO. REGRAS OBRIGATORIAS:
+- Para cada tema, Isa defende posicao A e Leo defende posicao B (OPOSTAS)
+- Estrutura POR TEMA: Tese (Isa) -> Antitese (Leo) -> Replica (Isa) -> Treplica (Leo)
+- Use: "Discordo completamente!", "Os numeros nao mentem:", "Voce esta ignorando que..."
+- CONCESSOES PARCIAIS: "Ok, voce tem um ponto NESSE aspecto, mas..."
+- ESCALADA de intensidade ao longo do podcast
+- NO FINAL de cada tema: "Nao vamos resolver isso aqui. ${userName}, voce decide."
+- Tom APAIXONADO e INTENSO, mas NUNCA desrespeitoso
+- Abertura: "Hoje a gente vai discordar em TUDO." "Veremos. Que comece o embate!"
+- Encerramento: "Como sempre, o veredito e seu, ${userName}!" `,
+
+    entrevista: `Leo e um JORNALISTA INVESTIGATIVO entrevistando Isa, que e uma ESPECIALISTA. REGRAS OBRIGATORIAS:
+- Formato CLARO: "Leo: [pergunta]" seguido de "Isa: [resposta]"
+- Leo faz perguntas PROVOCATIVAS: "Mas sera que isso nao e exagero?", "Alguns criticos dizem que..."
+- Isa NUNCA desvia: responde com DADOS e EXEMPLOS concretos
+- FOLLOW-UPS obrigatorios: "Voce poderia dar um exemplo?", "E se alguem argumentar que...?"
+- Inclua: "Pergunta do nosso ouvinte ${userName}: ..." (pelo menos 1 vez)
+- Isa pode dizer: "Otima pergunta" ou "Essa e a pergunta que todo mundo deveria fazer"
+- Tom PROFISSIONAL mas dinamico
+- Abertura: "Hoje eu tenho a especialista Isa aqui e vou fazer as perguntas que VOCE faria."
+- Encerramento: "Obrigado, Isa. E obrigado a voce, ${userName}, por ouvir!" `,
+
+    motivacional: `Isa e Leo estao INSPIRANDO e MOTIVANDO ${userName}. REGRAS OBRIGATORIAS:
+- ENERGIA ALTISSIMA desde o inicio: "VOCE ESTA PRONTO? Porque as noticias de hoje vao te mostrar que TUDO E POSSIVEL!"
+- Para cada tema, extraia uma LICAO DE VIDA e um EXEMPLO DE SUPERACAO
+- Use CITACOES reais (atribua ao autor): "Como disse Steve Jobs: Stay hungry, stay foolish"
+- ESCALE a energia ao longo do podcast (comece forte, termine FORTISSIMO)
+- Cada tema: noticia -> licao -> como aplicar NA SUA VIDA
+- Leo traz energia ("VAI, ${userName}!") e Isa traz profundidade
+- FECHAMENTO com DESAFIO CONCRETO: "Nas proximas 24 horas, eu quero que voce FACA isso: [acao especifica]"
+- FRASE FINAL de poder: "Voce e mais forte do que imagina. Vai la e faz acontecer, ${userName}!"
+- PROIBIDO tom calmo ou informativo. Isso e um PODCAST MOTIVACIONAL.`,
 
   };
 

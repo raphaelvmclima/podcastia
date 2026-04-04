@@ -16,52 +16,52 @@ interface ThemeAudioConfig {
 
 const THEME_AUDIO_CONFIGS: Record<string, ThemeAudioConfig> = {
   conversa: {
-    voiceDirection: "Fale com entusiasmo, energia e empolgacao num tom brincalhao e descontraido, como dois amigos conversando.",
+    voiceDirection: "Fale como dois amigos num bar, rindo, se interrompendo, com tom informal e descontraido. Muita risada e espontaneidade.",
     temperature: 1.2,
     musicVolume: 0.08,
   },
   aula: {
-    voiceDirection: "Fale de forma clara, didatica e paciente, como um professor explicando para alunos curiosos. Tom calmo, encorajador e pedagogico. Faca pausas naturais para enfatizar pontos importantes.",
+    voiceDirection: "Fale como uma professora paciente e carinhosa explicando para um aluno curioso. Tom calmo, pedagogico, com pausas para o aluno pensar. O aluno fala com curiosidade e duvida.",
     temperature: 0.9,
     musicVolume: 0.05,
   },
   jornalistico: {
-    voiceDirection: "Fale com tom profissional e serio, como apresentadores de um telejornal respeitado. Voz firme, diccao impecavel, ritmo constante e cadenciado. Transmita credibilidade e autoridade.",
+    voiceDirection: "Fale como apresentadores de telejornal da Globo. Tom serio, formal, profissional. Diccao perfeita. Sem emocao exagerada.",
     temperature: 0.8,
     musicVolume: 0.06,
   },
   resumo: {
-    voiceDirection: "Fale de forma direta, objetiva e eficiente, como um assistente executivo fazendo um briefing. Ritmo agil mas claro, sem enrolacao. Tom profissional e assertivo.",
+    voiceDirection: "Fale de forma RAPIDA, direta e objetiva. Como um assistente executivo fazendo um briefing de 2 minutos. Ritmo acelerado, sem pausas longas.",
     temperature: 0.7,
     musicVolume: 0.04,
   },
   comentarios: {
-    voiceDirection: "Fale com tom analitico e engajado, alternando entre seriedade e descontracao ao dar opinioes. Demonstre interesse genuino e paixao pelos temas.",
+    voiceDirection: "Fale com paixao e engajamento. Dois comentaristas que discordam frequentemente mas se respeitam. Tom de mesa redonda.",
     temperature: 1.1,
     musicVolume: 0.07,
   },
   storytelling: {
-    voiceDirection: "Fale com tom envolvente e dramatico, variando ritmo e emocao como um contador de historias magistral. Use suspense, surpresa e emocao na voz. Prenda a atencao do ouvinte.",
+    voiceDirection: "Fale como um contador de historias magistral. Varie o ritmo: lento no suspense, rapido na acao, suave na reflexao. Tom dramatico e envolvente.",
     temperature: 1.3,
     musicVolume: 0.10,
   },
   estudo_biblico: {
-    voiceDirection: "Fale com tom reverente, acolhedor e sereno. Voz suave e reflexiva, transmitindo paz, sabedoria e compaixao. Ritmo calmo e contemplativo, com pausas para reflexao.",
+    voiceDirection: "Fale com voz suave, serena e acolhedora. Como um pastor falando com carinho para sua comunidade. Pausas contemplativas. Paz e sabedoria na voz.",
     temperature: 0.8,
     musicVolume: 0.06,
   },
   debate: {
-    voiceDirection: "Fale com energia e paixao, como debatedores defendendo posicoes com conviccao. Tom intenso mas respeitoso. Cada host deve demonstrar firmeza em seus argumentos com emocao na voz.",
+    voiceDirection: "Fale com intensidade e paixao. Dois debatedores que discordam fortemente. Tom acalorado, energico, quase agressivo mas sempre respeitoso.",
     temperature: 1.3,
     musicVolume: 0.07,
   },
   entrevista: {
-    voiceDirection: "Fale com tom profissional e curioso. O entrevistador faz perguntas incisivas e provocativas. A especialista responde com confianca e profundidade. Dialogo natural e fluido.",
+    voiceDirection: "Fale como um jornalista fazendo perguntas incisivas e uma especialista respondendo com confianca. Tom profissional e dinamico.",
     temperature: 1.0,
     musicVolume: 0.06,
   },
   motivacional: {
-    voiceDirection: "Fale com MUITA energia, empolgacao e entusiasmo vibrante. Tom inspirador e poderoso, como um coach motivacional que transforma vidas. Transmita forca, determinacao e positividade contagiante.",
+    voiceDirection: "Fale com MAXIMA energia, empolgacao e poder. Como Tony Robbins em um palco. Voz potente, vibrante, que faz o ouvinte levantar da cadeira. GRITE as partes mais intensas.",
     temperature: 1.4,
     musicVolume: 0.09,
   },
