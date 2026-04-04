@@ -333,7 +333,7 @@ export default function LandingPage() {
       <section className="lp-hero">
         <ParticleGrid />
         <Reveal><div className="lp-hero-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Novo: 10 estilos + 11 fontes + entrega via WhatsApp</div></Reveal>
-        <h1 className="lp-hero-title lp-typewriter">Transforme qualquer fonte em <span className="gradient-text">podcasts personalizados com IA</span></h1>
+        <h1 className="lp-hero-title lp-typewriter">Pare de ler. <span className="gradient-text">Ouça.</span></h1>
         <Reveal delay={200}><p className="lp-hero-sub">WhatsApp, RSS, YouTube, Not&#237;cias IA, CRM, Agenda, Passagens, Pre&#231;os &mdash; conecte suas fontes, escolha entre <strong>10 estilos de podcast</strong> e receba &#225;udio com vozes naturais direto no <strong>WhatsApp</strong> ou no app.</p></Reveal>
         <Reveal delay={400}>
           <div className="lp-hero-ctas">
@@ -561,7 +561,7 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
-          <div className="lp-footer-brand"><span className="lp-logo">PodcastIA</span><p>Transforme qualquer fonte em podcasts personalizados com IA.</p></div>
+          <div className="lp-footer-brand"><span className="lp-logo">PodcastIA</span><p>Pare de ler. Ouça. Podcasts personalizados com IA.</p></div>
           <div className="lp-footer-links">
             <div><h4>Produto</h4><a href="#como-funciona">Como funciona</a><a href="#estilos">Estilos</a><a href="#fontes">Fontes</a><a href="#planos">Planos</a><a href="#faq">FAQ</a></div>
             <div><h4>Conta</h4><Link href="/login">Entrar</Link><Link href="/register">Criar conta</Link></div>
