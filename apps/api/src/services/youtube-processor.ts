@@ -70,7 +70,7 @@ interface YouTubeVideoMeta {
  */
 async function fetchVideoMetaFromAPI(videoId: string): Promise<YouTubeVideoMeta | null> {
   try {
-    const url = `${YOUTUBE_DATA_API_BASE}/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${env.GOOGLE_API_KEY}`;
+    const url = `${YOUTUBE_DATA_API_BASE}/videos?part=snippet,contentDetails,statistics&id=${videoId}&key=${env.YOUTUBE_API_KEY}`;
 
     console.log(`[youtube-processor] YouTube Data API v3 → video ${videoId}`);
 
@@ -118,7 +118,7 @@ async function fetchChannelVideosFromAPI(
   maxResults = 10
 ): Promise<Array<{ videoId: string; title: string; description: string; publishedAt: string }> | null> {
   try {
-    const url = `${YOUTUBE_DATA_API_BASE}/search?part=snippet&channelId=${channelId}&type=video&order=date&maxResults=${maxResults}&key=${env.GOOGLE_API_KEY}`;
+    const url = `${YOUTUBE_DATA_API_BASE}/search?part=snippet&channelId=${channelId}&type=video&order=date&maxResults=${maxResults}&key=${env.YOUTUBE_API_KEY}`;
 
     console.log(`[youtube-processor] YouTube Data API v3 → channel ${channelId} (max ${maxResults})`);
 

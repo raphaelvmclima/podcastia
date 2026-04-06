@@ -7,6 +7,7 @@ export const env = {
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY!,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   GOOGLE_API_KEY: process.env.GOOGLE_API_KEY!,
+  YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY || process.env.GOOGLE_API_KEY!,
   UAZAPI_URL: process.env.UAZAPI_URL!,
   UAZAPI_TOKEN: process.env.UAZAPI_TOKEN!,
   REDIS_URL: process.env.REDIS_URL || "redis://localhost:6379",
