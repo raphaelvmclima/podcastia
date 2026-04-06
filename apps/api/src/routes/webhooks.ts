@@ -1,9 +1,47 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { processMedia } from "../services/media-processor.js";
+import { isActivationPhrase, isDeactivationPhrase, activateSession, deactivateSession, isSessionActive, getUserByPhone, processMessage, getGreeting, getFarewell, markSentMessage, isSentByMaia, scheduleSessionTimeout, cancelSessionTimeout, refreshTTL } from "../services/isa.js";
+import { sendWhatsAppText, sendWhatsAppAudio } from "../services/uazapi.js";
+
+const THEMES_TEXT = `🎙️ *Escolha o estilo do seu podcast:*
+
+1️⃣ *conversa* — Dois amigos conversando no bar sobre o assunto, com piadas e histórias pessoais. Clima leve e descontraído.
+
+2️⃣ *aula* — Estilo professor e aluno. A Maia ensina e o Raphael tenta responder. Didático e interativo.
+
+3️⃣ *jornalístico* — Formato telejornal profissional com reportagens e dados. Sério e informativo.
+
+4️⃣ *resumo* — Briefing executivo rápido. Só os pontos essenciais, direto ao ponto.
+
+5️⃣ *comentários* — Os dois discordam sobre cada tema. Opiniões opostas que geram reflexão.
+
+6️⃣ *storytelling* — Contação de histórias. Transforma o conteúdo em narrativas com suspense e emoção.
+
+7️⃣ *estudo* — Aula universitária técnica. Conteúdo acadêmico com terminologia científica.
+
+8️⃣ *debate* — Debate acalorado. Cada um defende uma posição oposta. Intenso e apaixonado.
+
+9️⃣ *entrevista* — Jornalista entrevistando especialista. Perguntas provocativas com respostas baseadas em dados.
+
+🔟 *motivacional* — Conteúdo inspirador com energia alta. Superação e call-to-action.
+
+_Responda com o número ou o nome do estilo que preferir!_`;
 
 // -- Rate limiter (in-memory, per IP) --
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+// -- Message deduplication (UAZAPI sends 2 webhooks per message) --
+const processedMessages = new Map<string, number>();
+const DEDUP_TTL = 30000; // 30 seconds
+
+// Cleanup stale dedup entries every 2 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, ts] of processedMessages) {
+    if (now - ts > DEDUP_TTL) processedMessages.delete(id);
+  }
+}, 120000);
 const RATE_LIMIT = 100;
 const RATE_WINDOW = 60000; // 60 seconds
 
@@ -33,6 +71,276 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || "";
+
+async function generateMaiaAudio(text: string, phone: string, token: string): Promise<void> {
+  const t0 = Date.now();
+  const { writeFileSync, unlinkSync, existsSync, mkdirSync } = await import("fs");
+  const { execSync } = await import("child_process");
+  const { readFileSync } = await import("fs");
+
+  if (!existsSync("/tmp/podcastia")) mkdirSync("/tmp/podcastia", { recursive: true });
+  const ts = Date.now();
+  const pcmFile = `/tmp/podcastia/maia_${ts}.pcm`;
+  const oggFile = `/tmp/podcastia/maia_${ts}.ogg`;
+
+  const payload = {
+    contents: [{ parts: [{ text: "Fale com voz feminina amigável e natural, em português brasileiro. Tom de assistente prestativa. " + text }] }],
+    generationConfig: {
+      responseModalities: ["AUDIO"],
+      temperature: 1.0,
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Leda" } },
+      },
+    },
+  };
+
+  // TTS with retry (max 2 attempts)
+  let audioB64: string | null = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${GOOGLE_API_KEY}`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(30000) }
+      );
+
+      if (!res.ok) {
+        console.error(`[Maia] TTS error (attempt ${attempt}):`, res.status);
+        if (attempt < 2) { await new Promise(r => setTimeout(r, 2000)); continue; }
+        break;
+      }
+
+      const data = (await res.json()) as any;
+      audioB64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
+      if (audioB64) break;
+      console.error(`[Maia] No audio data (attempt ${attempt})`);
+    } catch (err: any) {
+      console.error(`[Maia] TTS fetch error (attempt ${attempt}):`, err.message);
+      if (attempt < 2) { await new Promise(r => setTimeout(r, 2000)); continue; }
+    }
+  }
+
+  // Fallback: if TTS failed, send as text so user is never left without response
+  if (!audioB64) {
+    console.error("[Maia] TTS failed after retries, falling back to text");
+    await sendWhatsAppText(phone, text, token);
+    return;
+  }
+
+  writeFileSync(pcmFile, Buffer.from(audioB64, "base64"));
+  execSync(`ffmpeg -y -f s16le -ar 24000 -ac 1 -i ${pcmFile} -codec:a libvorbis -q:a 4 ${oggFile} 2>/dev/null`);
+
+  const audioBase64 = readFileSync(oggFile).toString("base64");
+  await sendWhatsAppAudio(phone, audioBase64, token);
+
+  try { unlinkSync(pcmFile); } catch {}
+  try { unlinkSync(oggFile); } catch {}
+  console.log("[Maia] Audio sent (" + (Date.now() - t0) + "ms)");
+}
+
+/**
+ * Process media from a fromMe message for Maia context
+ */
+async function downloadMediaFromUazapi(fullId: string, token: string): Promise<{ fileURL: string; mimetype: string } | null> {
+  try {
+    const baseUrl = process.env.UAZAPI_URL || "https://loumarturismo.uazapi.com";
+    // UAZAPI expects field "id" with format "owner:messageid"
+    const res = await fetch(`${baseUrl}/message/download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token },
+      body: JSON.stringify({ id: fullId }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error("[Maia] UAZAPI download error:", res.status, errText.slice(0, 200));
+      return null;
+    }
+    const data = (await res.json()) as any;
+    // UAZAPI returns { fileURL: "https://...", mimetype: "audio/mpeg" }
+    if (data?.fileURL) {
+      console.log("[Maia] UAZAPI download OK:", data.mimetype, data.fileURL.slice(0, 80));
+      return { fileURL: data.fileURL, mimetype: data.mimetype || "" };
+    }
+    console.error("[Maia] UAZAPI download: no fileURL in response");
+    return null;
+  } catch (err: any) {
+    console.error("[Maia] UAZAPI download error:", err.message);
+    return null;
+  }
+}
+
+async function processMediaForMaia(message: any, userToken?: string): Promise<string | null> {
+  const messageType = message.messageType || message.type || "";
+  const isMedia =
+    messageType.includes("Audio") || messageType.includes("audio") || messageType.includes("ptt") ||
+    messageType.includes("Image") || messageType.includes("image") ||
+    messageType.includes("Video") || messageType.includes("video") ||
+    messageType.includes("Document") || messageType.includes("document") ||
+    message.mimetype?.includes("audio") || message.mimetype?.includes("image") ||
+    message.mimetype?.includes("video") || message.mimetype?.includes("pdf");
+
+  if (!isMedia) return null;
+
+  // Extract media data from UAZAPI payload
+  const contentObj = (typeof message.content === "object" && message.content) ? message.content : null;
+  let base64Data = message.base64 || null;
+  let mimetype = message.mimetype || null;
+
+  // Get mimetype from content object
+  if (contentObj && !mimetype && contentObj.mimetype) {
+    mimetype = contentObj.mimetype;
+  }
+
+  // ALWAYS download via UAZAPI /message/download (WhatsApp media URLs are encrypted)
+  // UAZAPI needs full id format: "owner:messageid" (available in message.id)
+  let mediaUrl: string | null = null;
+  const fullId = message.id || (message.owner ? message.owner + ":" + message.messageid : null);
+  if (!base64Data && fullId && userToken) {
+    console.log("[Maia] Downloading media from UAZAPI, id:", fullId);
+    const downloadResult = await downloadMediaFromUazapi(fullId, userToken);
+    if (downloadResult) {
+      mediaUrl = downloadResult.fileURL;
+      if (!mimetype && downloadResult.mimetype) mimetype = downloadResult.mimetype;
+    }
+    // Infer mimetype from messageType if not available
+    if (!mimetype) {
+      if (messageType.includes("Audio") || messageType.includes("audio") || messageType.includes("ptt")) mimetype = "audio/ogg";
+      else if (messageType.includes("Image") || messageType.includes("image")) mimetype = "image/jpeg";
+      else if (messageType.includes("Video") || messageType.includes("video")) mimetype = "video/mp4";
+      else if (messageType.includes("Document") || messageType.includes("document")) mimetype = "application/pdf";
+    }
+  }
+
+  if (!base64Data && !mediaUrl) {
+    console.log("[Maia] No media source available for id:", fullId);
+    return null;
+  }
+
+  try {
+    const mediaResult = await processMedia(
+      messageType,
+      base64Data || undefined,
+      mediaUrl || undefined,
+      mimetype || undefined,
+      message.caption || (typeof message.text === "string" ? message.text : undefined)
+    );
+
+    if (!mediaResult) return null;
+
+    // Wrap in context tags só Maia knows the source
+    const tagMap: Record<string, string> = {
+      audio_transcription: "AUDIO",
+      image_description: "IMAGEM",
+      pdf_extraction: "DOCUMENTO",
+      video_transcription: "VIDEO",
+    };
+    const tag = tagMap[mediaResult.mediaType] || "MIDIA";
+    console.log(`[Maia] Media processed for direct chat (${mediaResult.mediaType}): ${mediaResult.text.slice(0, 80)}...`);
+    return `[${tag}]${mediaResult.text}[/${tag}]`;
+  } catch (err: any) {
+    console.error("[Maia] Media processing error in direct chat:", err.message);
+    return null;
+  }
+}
+
+async function handleIsaMessage(phone: string, text: string, mediaContext?: string): Promise<void> {
+  const user = await getUserByPhone(phone);
+  if (!user) {
+    console.log("[Maia] Unknown phone:", phone);
+    return;
+  }
+
+  const { userId, token, name } = user;
+
+  // Extract transcribed text from audio media context for activation/deactivation checks
+  // This allows "Ola Maia" sent as voice note to activate the session
+  let effectiveText = text;
+  if (!effectiveText && mediaContext) {
+    const audioMatch = mediaContext.match(/\[Audio transcrito\]:\s*(.+?)(?:\[|$)/i);
+    if (audioMatch) {
+      effectiveText = audioMatch[1].trim();
+      console.log("[Maia] Extracted text from audio:", effectiveText.slice(0, 80));
+    }
+  }
+
+  // Check activation (text OR audio transcription)
+  if (effectiveText && isActivationPhrase(effectiveText)) {
+    await activateSession(userId);
+    scheduleSessionTimeout(userId, phone, token, name);
+    const greeting = await getGreeting(name, userId);
+    sendWhatsAppText(phone, "Maia gravando um áudio... 🎙️", token).catch(() => {});
+    generateMaiaAudio(greeting, phone, token).catch((err) =>
+      console.error("[Maia] Greeting audio error:", err.message)
+    );
+    console.log("[Maia] Session activated for", name);
+    return;
+  }
+
+  // Check if session is active
+  const active = await isSessionActive(userId);
+  if (!active) {
+    console.log("[Maia] Session not active for", name, "- ignoring. Text:", (effectiveText || "[no text]").slice(0, 50));
+    return;
+  }
+
+  // Check deactivation (text OR audio transcription)
+  if (effectiveText && isDeactivationPhrase(effectiveText)) {
+    await deactivateSession(userId);
+    cancelSessionTimeout(userId);
+    const farewell = getFarewell(name);
+    sendWhatsAppText(phone, "Maia gravando um áudio... 🎙️", token).catch(() => {});
+    generateMaiaAudio(farewell, phone, token).catch((err) =>
+      console.error("[Maia] Farewell audio error:", err.message)
+    );
+    console.log("[Maia] Session deactivated for", name);
+    return;
+  }
+
+  // Need at least text or media context
+  if (!text && !mediaContext) return;
+
+  // Process message with AI
+  const preview = text ? text.slice(0, 80) : (mediaContext ? "[media]" : "");
+  console.log("[Maia] Processing:", preview);
+
+  // Reschedule timeout on every interaction
+  scheduleSessionTimeout(userId, phone, token, name);
+
+  // Send "typing" indicator immediately
+  sendWhatsAppText(phone, "Maia gravando um áudio... 🎙️", token).catch(() => {});
+
+  const t0 = Date.now();
+  const response = await processMessage(userId, name, text, mediaContext);
+  console.log("[Maia] GPT response (" + (Date.now() - t0) + "ms):", response.slice(0, 80));
+
+  // Auto-detect when Maia is asking about audio theme/style
+  const responseLower = response.toLowerCase();
+  // Detect ONLY when Maia is ASKING about themes, NOT when confirming a choice
+  const isConfirmingAction = responseLower.includes("vou criar") || responseLower.includes("criei") || responseLower.includes("criada") || responseLower.includes("pronta") || responseLower.includes("criando") || responseLower.includes("fonte criada") || responseLower.includes("pronto");
+  const isAskingTheme = !isConfirmingAction && (
+    response.includes("__SHOW_THEMES__") ||
+    (responseLower.includes("qual estilo") || responseLower.includes("qual tema de áudio") || responseLower.includes("qual tema do áudio")) ||
+    (responseLower.includes("escolha") && responseLower.includes("estilo"))
+  );
+
+  if (isAskingTheme) {
+    // Send formatted text list ONLY (no audio with theme names)
+    sendWhatsAppText(phone, THEMES_TEXT, token).catch(() => {});
+    // Audio with FIXED phrase - never let GPT list themes in audio
+    generateMaiaAudio("Te mandei a lista com todos os estilos de podcast disponíveis. Dá uma olhada e me diz qual combina mais com o que você quer!", phone, token).catch((err) =>
+      console.error("[Maia] Audio error:", err.message)
+    );
+    console.log("[Maia] Themes list sent to", name);
+  } else {
+    // Normal response - audio only
+    generateMaiaAudio(response, phone, token).catch((err) =>
+      console.error("[Maia] Audio error:", err.message)
+    );
+    console.log("[Maia] Responded to", name, ":", response.slice(0, 80));
+  }
+}
+
 export async function webhookRoutes(app: FastifyInstance) {
   // Increase body limit for media payloads (base64 can be large)
   app.post("/api/webhooks/whatsapp", { config: { rawBody: true }, bodyLimit: 50 * 1024 * 1024 }, async (request, reply) => {
@@ -47,9 +355,53 @@ export async function webhookRoutes(app: FastifyInstance) {
       return reply.status(200).send({ ok: true, skipped: "no message" });
     }
 
-    // Skip own messages
+
+    // Route own messages to Maia AI assistant
     if (message.fromMe) {
-      return reply.status(200).send({ ok: true, skipped: "own message" });
+      const selfText = (message.text || message.conversation || message.caption || "").trim();
+      // Skip messages sent by Maia (anti-loop)
+      // 1. Text messages from Maia start with *PodcastIA
+      // 2. Audio/media sent via API have wasSentByApi=true
+      if (selfText.startsWith("*PodcastIA") || message.wasSentByApi === true) {
+        return reply.status(200).send({ ok: true, skipped: "maia_sent" });
+      }
+
+      // Deduplicate: UAZAPI sends 2 webhooks per message
+      const msgId = message.messageid || message.id || "";
+      if (msgId && processedMessages.has(msgId)) {
+        return reply.status(200).send({ ok: true, skipped: "duplicate" });
+      }
+      if (msgId) processedMessages.set(msgId, Date.now());
+
+      const senderPhone = (message.key?.remoteJid || chat?.wa_chatid || "").replace("@s.whatsapp.net", "");
+
+      // Resolve user early só we have the UAZAPI token for media download
+      const maiaUser = await getUserByPhone(senderPhone);
+      const userToken = maiaUser?.token;
+
+      // Process media if present (audio, image, docs)
+      let mediaContext: string | null = null;
+      const msgType = (message.messageType || message.type || "").toLowerCase();
+      const hasMediaType = msgType.includes("audio") || msgType.includes("image") ||
+        msgType.includes("ptt") || msgType.includes("document") || msgType.includes("video");
+
+      if (!selfText && hasMediaType) {
+        // No text — try media (e.g. voice note "Ola Maia")
+        mediaContext = await processMediaForMaia(message, userToken || undefined);
+        if (!mediaContext) {
+          return reply.status(200).send({ ok: true, skipped: "own_no_content" });
+        }
+      } else if (!selfText) {
+        return reply.status(200).send({ ok: true, skipped: "own_no_text" });
+      } else if (hasMediaType) {
+        // Has text AND media (e.g. image with caption)
+        mediaContext = await processMediaForMaia(message, userToken || undefined);
+      }
+
+      handleIsaMessage(senderPhone, selfText, mediaContext || undefined).catch((err) =>
+        console.error("[Maia] Handler error:", err.message)
+      );
+      return reply.status(200).send({ ok: true, handled: "maia" });
     }
 
     const messageType = message.messageType || message.type || "";

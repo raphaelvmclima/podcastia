@@ -10,6 +10,7 @@ interface Source {
   active: boolean;
   config?: Record<string, any>;
   podcast_theme?: string;
+  schedule_times?: string[] | null;
   created_at: string;
 }
 
@@ -333,12 +334,17 @@ export default function FontesPage() {
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
   const [editingThemeValue, setEditingThemeValue] = useState("conversa");
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [postCreateModal, setPostCreateModal] = useState<{ show: boolean; sourceId: string | null; sourceName: string }>({ show: false, sourceId: null, sourceName: "" });
+  const [postCreateStep, setPostCreateStep] = useState<"choose" | "schedule" | "generating" | "done" | "error">("choose");
+  const [scheduleTimeInput, setScheduleTimeInput] = useState("08:00");
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+  const [editingScheduleTime, setEditingScheduleTime] = useState("08:00");
 
   const fetchSources = useCallback(async () => {
     try {
       const res = await api("/api/sources");
       const raw = res?.sources || res || [];
-      setSources(raw.map((s: any) => ({ ...s, active: s.is_active ?? s.active ?? false })));
+      setSources(raw.map((s: any) => ({ ...s, active: s.is_active ?? s.active ?? false, schedule_times: s.schedule_times || null })));
     } catch {
       /* empty */
     } finally {
@@ -446,13 +452,20 @@ export default function FontesPage() {
     if (selectedGroups.length === 0) return;
     setSaving(true);
     try {
-      await api("/api/sources/whatsapp/groups", {
+      const waRes = await api("/api/sources/whatsapp/groups", {
         method: "POST",
         body: JSON.stringify({ groups: selectedGroups.map((g) => ({ id: g.id, name: g.name })), podcast_theme: selectedTheme }),
       });
+      const waCreatedId = waRes?.id || waRes?.source?.id || waRes?.sources?.[0]?.id;
+      const waCreatedName = selectedGroups.map(g => g.name).join(", ");
       setSelectedGroups([]);
       setActivePanel(null);
       fetchSources();
+      if (waCreatedId) {
+        setPostCreateModal({ show: true, sourceId: waCreatedId, sourceName: waCreatedName });
+        setPostCreateStep("choose");
+        setScheduleTimeInput("08:00");
+      }
     } catch {
       /* empty */
     } finally {
@@ -483,11 +496,20 @@ export default function FontesPage() {
         method: "POST",
         body: JSON.stringify({ type: activePanel, name: formName, config: finalConfig, podcast_theme: selectedTheme }),
       });
+      const createdId = res?.id || res?.source?.id;
+      const savedName = formName;
       setActivePanel(null);
       setShowTypeSelector(false);
-      fetchSources();
-    } catch {
-      /* empty */
+      await fetchSources();
+      if (createdId) {
+        setPostCreateModal({ show: true, sourceId: createdId, sourceName: savedName });
+        setPostCreateStep("choose");
+        setScheduleTimeInput("08:00");
+      } else {
+        alert("Fonte criada, mas não foi possível abrir as opções de agendamento.");
+      }
+    } catch (err: any) {
+      alert("Erro ao criar fonte: " + (err?.message || "tente novamente"));
     } finally {
       setSaving(false);
     }
@@ -602,6 +624,30 @@ export default function FontesPage() {
         style={inputStyle}
       />
     );
+  };
+
+  const handleGenerateNow = async (sourceId: string) => {
+    setPostCreateStep("generating");
+    try {
+      await api(`/api/sources/${sourceId}/generate-now`, { method: "POST", body: JSON.stringify({}) });
+      setPostCreateStep("done");
+    } catch {
+      setPostCreateStep("error");
+    }
+  };
+
+  const handleSaveSchedule = async (sourceId: string, time: string) => {
+    try {
+      await api(`/api/sources/${sourceId}/schedule`, { method: "PATCH", body: JSON.stringify({ schedule_times: [time] }) });
+      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, schedule_times: [time] } : s));
+    } catch { /* empty */ }
+  };
+
+  const handleClearSchedule = async (sourceId: string) => {
+    try {
+      await api(`/api/sources/${sourceId}/schedule`, { method: "PATCH", body: JSON.stringify({ schedule_times: null }) });
+      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, schedule_times: null } : s));
+    } catch { /* empty */ }
   };
 
   return (
@@ -1204,6 +1250,34 @@ export default function FontesPage() {
                             </span>
                           ) : null;
                         })()}
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (editingScheduleId === source.id) {
+                              setEditingScheduleId(null);
+                            } else {
+                              setEditingScheduleId(source.id);
+                              setEditingScheduleTime(source.schedule_times?.[0] || "08:00");
+                            }
+                          }}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "3px",
+                            padding: "1px 6px",
+                            borderRadius: "8px",
+                            background: source.schedule_times?.length ? "rgba(16, 185, 129, 0.1)" : "var(--bg-secondary)",
+                            color: source.schedule_times?.length ? "#10B981" : "var(--fg-faint)",
+                            fontSize: "10px",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            border: source.schedule_times?.length ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid var(--border)",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={source.schedule_times?.length ? "Horário individual - clique para editar" : "Usando horário global - clique para personalizar"}
+                        >
+                          {source.schedule_times?.length ? `⏰ ${source.schedule_times[0]}` : "📅 Global"}
+                        </span>
                       </div>
                     </div>
                     {/* Toggle */}
@@ -1279,6 +1353,35 @@ export default function FontesPage() {
                     </div>
                   )}
 
+                  {/* Inline schedule editor */}
+                  {editingScheduleId === source.id && (
+                    <div style={{ marginTop: "8px", padding: "10px", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", marginBottom: "8px" }}>Horário de geração:</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <input
+                          type="time"
+                          value={editingScheduleTime}
+                          onChange={(e) => setEditingScheduleTime(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ ...inputStyle, maxWidth: "120px", fontSize: "var(--text-sm)" }}
+                        />
+                        <button className="btn-primary" onClick={async (e) => {
+                          e.stopPropagation();
+                          await handleSaveSchedule(source.id, editingScheduleTime);
+                          setEditingScheduleId(null);
+                        }} style={{ fontSize: "var(--text-xs)", padding: "6px 12px" }}>Salvar</button>
+                        {source.schedule_times?.length ? (
+                          <button className="btn-ghost" onClick={async (e) => {
+                            e.stopPropagation();
+                            await handleClearSchedule(source.id);
+                            setEditingScheduleId(null);
+                          }} style={{ fontSize: "var(--text-xs)", padding: "6px 10px", color: "var(--fg-muted)" }}>Usar global</button>
+                        ) : null}
+                        <button className="btn-ghost" onClick={(e) => { e.stopPropagation(); setEditingScheduleId(null); }} style={{ fontSize: "var(--text-xs)", padding: "6px 10px" }}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Inline theme editor */}
                   {editingThemeId === source.id && (
                     <div style={{ marginTop: "8px", padding: "10px", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
@@ -1329,6 +1432,170 @@ export default function FontesPage() {
           </div>
         )}
       </div>
+      {/* Post-creation modal */}
+      {postCreateModal.show && postCreateModal.sourceId && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0, 0, 0, 0.6)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={() => setPostCreateModal({ show: false, sourceId: null, sourceName: "" })}
+        >
+          <div
+            className="card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              padding: "28px",
+              maxWidth: "420px",
+              width: "90%",
+              background: "var(--bg-elevated, var(--bg))",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-lg, 12px)",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            {postCreateStep === "choose" && (
+              <>
+                <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "8px" }}>✅</div>
+                  <h3 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: "var(--fg)", margin: "0 0 4px 0" }}>
+                    Fonte criada com sucesso!
+                  </h3>
+                  <p style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", margin: 0 }}>
+                    {postCreateModal.sourceName}
+                  </p>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <button
+                    className="btn-primary"
+                    onClick={() => handleGenerateNow(postCreateModal.sourceId!)}
+                    style={{ width: "100%", padding: "12px", fontSize: "var(--text-sm)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                  >
+                    🎙️ Gerar podcast agora
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setPostCreateStep("schedule")}
+                    style={{ width: "100%", padding: "12px", fontSize: "var(--text-sm)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", border: "1px solid var(--border)" }}
+                  >
+                    ⏰ Agendar horário
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setPostCreateModal({ show: false, sourceId: null, sourceName: "" })}
+                    style={{ width: "100%", padding: "12px", fontSize: "var(--text-sm)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", color: "var(--fg-muted)" }}
+                  >
+                    📅 Usar horário global
+                  </button>
+                </div>
+              </>
+            )}
+            {postCreateStep === "schedule" && (
+              <>
+                <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                  <h3 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: "var(--fg)", margin: "0 0 4px 0" }}>
+                    ⏰ Agendar horário
+                  </h3>
+                  <p style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", margin: 0 }}>
+                    Escolha o horário para gerar o podcast desta fonte
+                  </p>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "center" }}>
+                  <input
+                    type="time"
+                    value={scheduleTimeInput}
+                    onChange={(e) => setScheduleTimeInput(e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      maxWidth: "160px",
+                      textAlign: "center",
+                      fontSize: "var(--text-base)",
+                      padding: "10px 16px",
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+                    <button
+                      className="btn-ghost"
+                      onClick={() => setPostCreateStep("choose")}
+                      style={{ flex: 1, padding: "10px", fontSize: "var(--text-sm)" }}
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={async () => {
+                        await handleSaveSchedule(postCreateModal.sourceId!, scheduleTimeInput);
+                        setPostCreateModal({ show: false, sourceId: null, sourceName: "" });
+                      }}
+                      style={{ flex: 1, padding: "10px", fontSize: "var(--text-sm)" }}
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+            {postCreateStep === "generating" && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div className="skeleton" style={{ width: "48px", height: "48px", borderRadius: "50%", margin: "0 auto 16px" }} />
+                <p style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)", margin: 0 }}>Gerando podcast...</p>
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--fg-faint)", margin: "4px 0 0 0" }}>Isso pode levar alguns minutos</p>
+              </div>
+            )}
+            {postCreateStep === "done" && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: "32px", marginBottom: "12px" }}>🎉</div>
+                <h3 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: "var(--fg)", margin: "0 0 8px 0" }}>
+                  Podcast em geração!
+                </h3>
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", margin: "0 0 16px 0" }}>
+                  Você será notificado quando estiver pronto.
+                </p>
+                <button
+                  className="btn-primary"
+                  onClick={() => setPostCreateModal({ show: false, sourceId: null, sourceName: "" })}
+                  style={{ padding: "10px 24px", fontSize: "var(--text-sm)" }}
+                >
+                  Fechar
+                </button>
+              </div>
+            )}
+            {postCreateStep === "error" && (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: "32px", marginBottom: "12px" }}>⚠️</div>
+                <h3 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: "var(--danger)", margin: "0 0 8px 0" }}>
+                  Erro ao gerar
+                </h3>
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--fg-muted)", margin: "0 0 16px 0" }}>
+                  Não foi possível iniciar a geração. Tente novamente mais tarde.
+                </p>
+                <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setPostCreateModal({ show: false, sourceId: null, sourceName: "" })}
+                    style={{ padding: "10px 20px", fontSize: "var(--text-sm)" }}
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    className="btn-primary"
+                    onClick={() => handleGenerateNow(postCreateModal.sourceId!)}
+                    style={{ padding: "10px 20px", fontSize: "var(--text-sm)" }}
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

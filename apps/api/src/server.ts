@@ -8,6 +8,7 @@ import { digestsRoutes } from "./routes/digests.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { newsRoutes } from "./routes/news.js";
+import { adminRoutes } from "./routes/admin.js";
 import { startWorker } from "./workers/digest.js";
 import { startScheduler } from "./services/scheduler.js";
 
@@ -44,6 +45,7 @@ await app.register(digestsRoutes);
 await app.register(settingsRoutes);
 await app.register(webhookRoutes);
 await app.register(newsRoutes);
+await app.register(adminRoutes);
 
 // Public endpoint for podcast themes (no auth required, used by LP)
 app.get("/api/podcast-themes", async () => {

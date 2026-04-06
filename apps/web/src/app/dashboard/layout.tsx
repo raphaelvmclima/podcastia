@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "@/components/theme-provider";
@@ -11,6 +11,7 @@ interface User {
   name: string;
   email: string;
   plan?: string;
+  role?: string;
 }
 
 const navItems = [
@@ -69,6 +70,16 @@ const navItems = [
   },
 ];
 
+const adminNavItem = {
+  label: "Admin",
+  href: "/dashboard/admin",
+  icon: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ),
+};
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -84,6 +95,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .then((data) => { setUser(data.user); setLoading(false); })
       .catch(() => { localStorage.removeItem("podcastia_session"); router.replace("/login"); });
   }, [router]);
+
+  const visibleNavItems = useMemo(() => {
+    if (user?.role === "super_admin") {
+      return [...navItems, adminNavItem];
+    }
+    return navItems;
+  }, [user?.role]);
 
   const cycleTheme = () => {
     if (theme === "dark") setTheme("light");
@@ -137,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Nav */}
         <nav className="ds-nav">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -188,7 +206,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Bottom nav */}
         <nav className="dashboard-bottom-nav">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

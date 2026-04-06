@@ -1,0 +1,77 @@
+# PodcastIA — Sessão Ativa
+
+## Info
+- **Data:** 2026-04-04
+- **Inicio:** 18:46 BRT
+- **Ultima atualizacao:** 02:17 BRT
+
+## Contexto Inicial
+- PM2 status:   - discador-whisper: online
+  - discador-backend: online
+  - captacao-backend: online
+  - podcastia-web: online
+  - podcastia-api: online
+  - claude-code-canvas: online
+- Git: a55d717 feat: replace estudo_biblico with Estudo — AI-powered research podcast
+- Disk: 159G livre
+
+## O que foi feito
+- [02:17] SESSÃO FINALIZADA. Tudo implementado e testado: Admin Panel + Schedule por Fonte + Generate Now + Modal pós-criação + Schedule inline.
+- [02:06] TESTES END-TO-END COMPLETOS: Admin stats OK, Admin users OK, Create source+schedule OK, Update schedule OK, Generate-now OK (rate limit funcionando), Change plan OK. Frontend fontes com modal pos-criacao + schedule inline. RLS digest_jobs corrigido.
+- [01:11] IMPLEMENTAÇÃO COMPLETA: Admin panel (backend+frontend) + Schedule por fonte (scheduler dual, generate-now, sourceIds filter). Todos os 3 agentes completaram. Deploy OK.
+- [01:09] FASE 1+2 COMPLETAS: Admin panel (backend+frontend), schedule por fonte (scheduler dual, digest sourceIds, sources schedule+generate-now). Build+deploy OK. Admin stats testado.
+- [04:39] Sessao completa salva em SESSAO-05ABR-COMPLETA.md. Fix URL detection no intent detector - extrai URL da msg do usuario e coloca no config.
+- [04:28] Fix GENERATE_NOW prioridade sobre CREATE, URLs agora pedem link ao usuario, confirmacao substitui resposta GPT, TTS 429 = rate limit temporario Gemini
+- [04:11] Removida busca automatica de URL. YouTube/RSS/HTTP agora pedem link ao usuario. Estudo e News nao precisam de link. Exemplos atualizados no prompt.
+- [03:50] searchForUrl v3: busca direta no youtube.com (extrai @handles dos resultados), fallback guess @handle, RSS guess common patterns, DuckDuckGo backup. Google Search não funciona de servidor (retorna SPA).
+- [03:34] Intent detector v2: extrai nome/tipo/tema da resposta GPT (nao da mensagem do usuario), confirmacao pergunta agora/agendado
+- [03:27] Intent detector: detecta acoes em linguagem natural quando GPT nao usa ACTION tags. Busca Google+DuckDuckGo reescrita. Regex fixes esbuild.
+- [03:16] searchForUrl reescrito: Google Search + DuckDuckGo backup, suporta multiplos candidatos YouTube (envia lista pro usuario confirmar), regex fixes para esbuild
+- [02:53] 10 fixes: audio nao lista temas (manda olhar lista texto), YouTube config.url (nao channel_url), Maia sabe que assiste videos, topic field no CREATE_SOURCE, RSS/HTTP usam config.url
+- [02:45] Fix critico: GPT nao executava acoes. max_tokens 700->1500, regex ACTION substituido por parser robusto (suporta JSON aninhado), formato CREATE_SOURCE simplificado (flat), exemplos no prompt, TTS retry+fallback texto
+- [21:37] Fix GPT não executava ações: reforço no prompt - NUNCA diga vou criar sem incluir ACTION tag. Fluxo completo com exemplo. Confirmação + pergunta agora/agendado após criar.
+- [21:29] TTS retry (2 tentativas) + fallback texto se TTS falhar. Usuário nunca fica sem resposta.
+- [21:26] Lista temas: auto-detecção ampliada (prefere/escolh/gostaria + conversa/comentário/debate/aula), texto formatado com emojis enviado junto ao áudio
+- [20:57] Sessão Maia: TTL 5min->30min, histórico persistente Supabase (maia_chat_history, 30 dias), aviso automático de timeout por texto, MAX_HISTORY 20->50, não apaga histórico ao desativar
+- [20:47] Acentuação corrigida: 422 correções em 3 passadas (isa.ts, ai.ts, tts.ts, webhooks.ts, research-fetcher.ts, digest.ts)
+- [20:30] Maia v2: so responde por audio (sem texto), foco em podcasts (nao responde outros assuntos), CHAT_DIGEST action para tirar duvidas sobre conteudo dos podcasts, greeting reescrito conversacional
+- [20:23] Fix audio Maia: UAZAPI download via /message/download com campo id, anti-loop wasSentByApi, extrai texto de audio para ativacao por voz
+- [19:49] Maia evoluida: processa audio/imagem/doc/video, 10 acoes (create multi-type, search URL, dashboard, toggle, change theme, list digests), Redis keys migrado para maia:, regex ativacao corrigido. Frontend 404 corrigido (static/public copiado para standalone).
+- [19:36] Renomeado Isa->Maia e Leo->Raphael em 6 arquivos (ai.ts, tts.ts, isa.ts, digest.ts, webhooks.ts, page.tsx). WhatsApp agora responde a Ola Maia. API + Frontend reiniciados.
+- [19:19] Podcast Sepse gerado com sucesso - 17497 chars Gemini academico, 6089 chars script, 407s audio, entregue WhatsApp 5545988445934
+- [18:59] Tema Estudo refatorado: research-fetcher agora academico (Gemini prompt livro-texto, busca SciELO/PubMed, sem Google News), prompt ai.ts academico, TTS voice direction academico
+- [18:46] Inicio sessao - criado sistema de salvamento automatico de contexto
+_(atualizar conforme progresso)_
+
+## Onde paramos
+- Maia WhatsApp assistant funcional: ativa por voz/texto, processa áudio/imagem/doc
+- Auto-detecção de pergunta sobre temas envia lista formatada por texto + áudio
+- GPT-4o-mini às vezes não segue instrução de usar ACTION tags — contornado com detecção automática
+- Lista de temas em texto chega quando Maia menciona "prefere" + nome de tema na resposta
+
+## Próximos passos / Pendências
+- Testar se a lista de temas em texto está chegando corretamente agora (detecção ampliada)
+- Verificar se Maia confirma criação de fonte e pergunta "agora ou agendado?" após criar
+- Git commit + push das alterações desta sessão
+- Remover logs de debug (Webhook-Debug, FULL MSG) após estabilizar
+- Ativar YouTube Data API v3 no Google Cloud (projeto 1023306039794)
+
+## Arquivos modificados nesta sessão
+1. `/opt/podcastia/apps/api/src/services/isa.ts` — Renomeado Isa->Maia, 10+ ações, CHAT_DIGEST, SHOW_THEMES, sessão 30min, histórico Supabase, greeting contextual, acentuação
+2. `/opt/podcastia/apps/api/src/services/ai.ts` — Renomeado Leo->Raphael, prompt Estudo acadêmico, acentuação (225 correções)
+3. `/opt/podcastia/apps/api/src/services/tts.ts` — Speakers Maia/Raphael, voice direction acadêmico, acentuação
+4. `/opt/podcastia/apps/api/src/services/research-fetcher.ts` — Reescrito: busca acadêmica (SciELO, PubMed), prompt livro-texto, acentuação
+5. `/opt/podcastia/apps/api/src/routes/webhooks.ts` — Media download UAZAPI, anti-loop wasSentByApi, dedup mensagens, typing indicator, auto-detecção temas, timeout notification
+6. `/opt/podcastia/apps/api/src/workers/digest.ts` — Renomeado variáveis maiaLine/raphaelLine, acentuação
+7. `/opt/podcastia/apps/web/src/app/dashboard/configuracoes/page.tsx` — Labels Maia/Raphael
+8. `/opt/podcastia/save-session.sh` — Script de salvamento automático de sessão
+9. `/usr/local/bin/save-session` — Comando global multi-projeto
+
+## Notas técnicas
+- **UAZAPI download**: Usa POST /message/download com campo `id` (formato owner:messageid). Retorna {fileURL, mimetype}
+- **Anti-loop**: wasSentByApi=true identifica mensagens enviadas pela API (áudios da Maia)
+- **Dedup**: UAZAPI envia 2 webhooks por mensagem — Map<messageid, timestamp> com TTL 30s
+- **Session TTL**: 1800s (30min), refresh a cada mensagem, timeout envia farewell por texto
+- **Histórico**: Redis (cache rápido, 7 dias) + Supabase maia_chat_history (permanente, 30 dias)
+- **Temas auto-detect**: Verifica se resposta contém (estilo/tema + prefer/escolh) ou (conversa/comentário/debate/aula + prefer)
+- **Acentuação**: 422 correções em 3 passadas via regex com word boundaries

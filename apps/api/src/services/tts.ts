@@ -25,7 +25,7 @@ const THEME_AUDIO_CONFIGS: Record<string, ThemeAudioConfig> = {
     temperature: 0.9,
     musicVolume: 0.05,
   },
-  jornalistico: {
+  jornalístico: {
     voiceDirection: "Fale como apresentadores de telejornal da Globo. Tom serio, formal, profissional. Diccao perfeita. Sem emocao exagerada.",
     temperature: 0.8,
     musicVolume: 0.06,
@@ -35,18 +35,18 @@ const THEME_AUDIO_CONFIGS: Record<string, ThemeAudioConfig> = {
     temperature: 0.7,
     musicVolume: 0.04,
   },
-  comentarios: {
+  comentários: {
     voiceDirection: "Fale com paixao e engajamento. Dois comentaristas que discordam frequentemente mas se respeitam. Tom de mesa redonda.",
     temperature: 1.1,
     musicVolume: 0.07,
   },
   storytelling: {
-    voiceDirection: "Fale como um contador de historias magistral. Varie o ritmo: lento no suspense, rapido na acao, suave na reflexao. Tom dramatico e envolvente.",
+    voiceDirection: "Fale como um contador de historias magistral. Varie o ritmo: lento no suspense, rápido na ação, suave na reflexão. Tom dramatico e envolvente.",
     temperature: 1.3,
     musicVolume: 0.10,
   },
   estudo: {
-    voiceDirection: "Fale como uma pesquisadora universitaria apaixonada pelo assunto, explicando com clareza e entusiasmo. O estudante fala com curiosidade genuina, surpresa ao aprender coisas novas. Ritmo calmo nas explicacoes complexas, enfatico nos pontos importantes e curiosidades.",
+    voiceDirection: "Fale como uma professora universitaria em uma aula de graduação. Tom acadêmico, serio e preciso ao explicar mecanismos e conceitos técnicos. Use termos científicos com naturalidade. O estudante faz perguntas técnicas inteligentes com tom focado e interessado. Ritmo pausado nas explicacoes de fisiopatologia e mecanismos complexos, firme ao citar referências e dados.",
     temperature: 0.9,
     musicVolume: 0.05,
   },
@@ -56,7 +56,7 @@ const THEME_AUDIO_CONFIGS: Record<string, ThemeAudioConfig> = {
     musicVolume: 0.07,
   },
   entrevista: {
-    voiceDirection: "Fale como um jornalista fazendo perguntas incisivas e uma especialista respondendo com confianca. Tom profissional e dinamico.",
+    voiceDirection: "Fale como um jornalista fazendo perguntas incisivas e uma especialista respondendo com confianca. Tom profissional e dinâmico.",
     temperature: 1.0,
     musicVolume: 0.06,
   },
@@ -94,9 +94,9 @@ export async function generateAudio(
 ): Promise<{ audioPath: string; duration: number }> {
   ensureTmpDir();
 
-  const speaker1 = voiceConfig?.speaker1Name || "Leo";
+  const speaker1 = voiceConfig?.speaker1Name || "Raphael";
   const speaker1Voice = voiceConfig?.speaker1Voice || "Sadachbia";
-  const speaker2 = voiceConfig?.speaker2Name || "Isa";
+  const speaker2 = voiceConfig?.speaker2Name || "Maia";
   const speaker2Voice = voiceConfig?.speaker2Voice || "Leda";
 
   const audioConfig = getThemeAudioConfig(theme);

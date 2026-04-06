@@ -5,6 +5,7 @@ import { redis } from "../lib/redis.js";
 import { execSync } from "child_process";
 import { readFileSync, unlinkSync, existsSync } from "fs";
 import { randomUUID } from "crypto";
+import { digestQueue } from "../services/queue.js";
 
 const UAZAPI_BASE = "https://loumarturismo.uazapi.com";
 const UAZAPI_ADMIN_TOKEN = process.env.UAZAPI_ADMIN_TOKEN || "";
@@ -228,7 +229,7 @@ export async function sourcesRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/sources", async (request, reply) => {
-    const { type, name, config, podcast_theme } = request.body as { type: string; name: string; config: any; podcast_theme?: string };
+    const { type, name, config, podcast_theme, schedule_times } = request.body as { type: string; name: string; config: any; podcast_theme?: string; schedule_times?: string[] };
     const limits = getPlanLimits(request.userPlan);
     const { count } = await supabaseAdmin.from("source_connections").select("*", { count: "exact", head: true }).eq("user_id", request.userId).eq("is_active", true);
     if ((count || 0) >= limits.maxSources) return reply.status(403).send({ error: "Limite atingido" });
@@ -246,7 +247,7 @@ export async function sourcesRoutes(app: FastifyInstance) {
       finalConfig.webhook_url = `${process.env.APP_API_URL || "https://api-podcastia.solutionprime.com.br"}/api/webhooks/source/${token}`;
     }
 
-    const { data, error } = await supabaseAdmin.from("source_connections").insert({ user_id: request.userId, type, name, config: finalConfig, is_active: true, podcast_theme: podcast_theme || "conversa" }).select().single();
+    const { data, error } = await supabaseAdmin.from("source_connections").insert({ user_id: request.userId, type, name, config: finalConfig, is_active: true, podcast_theme: podcast_theme || "conversa", schedule_times: schedule_times || null }).select().single();
     if (error) return reply.status(400).send({ error: error.message });
     return { source: data };
   });
@@ -376,5 +377,79 @@ export async function sourcesRoutes(app: FastifyInstance) {
 
     return { source, extracted: !!extractedText };
   });
+
+  // ── Schedule per source ──
+  app.patch("/api/sources/:id/schedule", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { schedule_times } = request.body as { schedule_times: string[] | null };
+
+    // Validate times format HH:MM
+    if (schedule_times) {
+      const valid = schedule_times.every((t: string) => /^\d{2}:\d{2}$/.test(t));
+      if (!valid) return reply.status(400).send({ error: "Formato invalido. Use HH:MM" });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("source_connections")
+      .update({ schedule_times })
+      .eq("id", id)
+      .eq("user_id", request.userId)
+      .select();
+
+    if (error) return reply.status(500).send({ error: error.message });
+    if (!data || data.length === 0) return reply.status(404).send({ error: "Fonte não encontrada" });
+    return { source: data[0] };
+  });
+
+  // ── Generate now per source ──
+  app.post("/api/sources/:id/generate-now", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const limits = getPlanLimits(request.userPlan);
+
+    // Check daily limit
+    const now = new Date();
+    const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    const today = `${brt.getFullYear()}-${String(brt.getMonth() + 1).padStart(2, "0")}-${String(brt.getDate()).padStart(2, "0")}`;
+    const { count } = await supabaseAdmin
+      .from("digest_jobs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", request.userId)
+      .gte("created_at", `${today}T00:00:00`)
+      .in("status", ["pending", "processing", "done"]);
+
+    if ((count || 0) >= limits.maxDigestsPerDay) {
+      return reply.status(429).send({ error: "Limite diario de resumos atingido" });
+    }
+
+    // Verify source belongs to user and is active
+    const { data: source } = await supabaseAdmin
+      .from("source_connections")
+      .select("id, name")
+      .eq("id", id)
+      .eq("user_id", request.userId)
+      .eq("is_active", true)
+      .single();
+
+    if (!source) return reply.status(404).send({ error: "Fonte nao encontrada ou inativa" });
+
+    // Create digest job
+    const { data: job, error: jobErr } = await supabaseAdmin
+      .from("digest_jobs")
+      .insert({
+        user_id: request.userId,
+        status: "pending",
+        scheduled_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (jobErr) return reply.status(500).send({ error: jobErr.message });
+
+    // Enqueue with specific sourceIds
+    await digestQueue.add("generate", { jobId: job!.id, userId: request.userId, sourceIds: [id] });
+
+    return { job, message: "Podcast sendo gerado!" };
+  });
+
 
 }

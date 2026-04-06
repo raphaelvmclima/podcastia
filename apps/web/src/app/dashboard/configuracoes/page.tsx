@@ -141,8 +141,8 @@ const timezones = [
 ];
 
 const voiceOptions = [
-  { value: "Sadachbia", label: "Leo (masculina, host principal)" },
-  { value: "Leda", label: "Isa (feminina, co-host)" },
+  { value: "Sadachbia", label: "Raphael (masculina, host principal)" },
+  { value: "Leda", label: "Maia (feminina, co-host)" },
 ];
 
 

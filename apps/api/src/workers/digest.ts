@@ -10,6 +10,7 @@ import { unlinkSync } from "fs";
 interface DigestJobData {
   jobId: string;
   userId: string;
+  sourceIds?: string[];
 }
 
 /** Helper: retry an async fn with delay between attempts */
@@ -39,9 +40,9 @@ function generateContentSummary(script: string, groups: { groupName: string; mes
   const topicNames = groups.map((g) => g.groupName).slice(0, 5);
   // Extract first substantive line from each host
   const lines = script.split("\n").filter((l) => l.trim().length > 20);
-  const isaLine = lines.find((l) => l.startsWith("Isa:"));
-  const leoLine = lines.find((l) => l.startsWith("Leo:"));
-  const snippet = (isaLine || leoLine || lines[0] || "").replace(/^(Isa|Leo):\s*/, "").slice(0, 120);
+  const maiaLine = lines.find((l) => l.startsWith("Maia:"));
+  const raphaelLine = lines.find((l) => l.startsWith("Raphael:"));
+  const snippet = (maiaLine || raphaelLine || lines[0] || "").replace(/^(Maia|Raphael):\s*/, "").slice(0, 120);
   return `Fontes: ${topicNames.join(", ")}. ${snippet}...`;
 }
 
@@ -88,11 +89,19 @@ async function processDigest(job: Job<DigestJobData>) {
 
     // 3. Fetch content from non-WhatsApp sources (RSS, YouTube, News, etc.)
     const tFetch = Date.now();
-    const { data: allSources } = await supabaseAdmin
+    // If specific sourceIds provided (per-source schedule), only process those
+    const sourceIds = job.data.sourceIds as string[] | undefined;
+    let sourceQuery = supabaseAdmin
       .from("source_connections")
       .select("*")
       .eq("user_id", userId)
       .eq("is_active", true);
+
+    if (sourceIds?.length) {
+      sourceQuery = sourceQuery.in("id", sourceIds);
+    }
+
+    const { data: allSources } = await sourceQuery;
 
     const nonWaSources = (allSources || []).filter((s: any) => s.type !== "whatsapp");
 
@@ -146,13 +155,20 @@ async function processDigest(job: Job<DigestJobData>) {
     console.log(`[Worker][TIMING] Source fetch: ${Date.now() - tFetch}ms`);
 
     // 4. Get ALL unprocessed messages (WhatsApp + freshly fetched)
-    const { data: messages } = await supabaseAdmin
+    // Fetch unprocessed messages, filtered by sourceIds if provided
+    let msgQuery = supabaseAdmin
       .from("captured_messages")
       .select("*")
       .eq("user_id", userId)
       .eq("processed", false)
       .order("captured_at", { ascending: true })
       .limit(200); // Max 200 messages per digest to avoid token overflow
+
+    if (sourceIds?.length) {
+      msgQuery = msgQuery.in("source_connection_id", sourceIds);
+    }
+
+    const { data: messages } = await msgQuery;
 
     if (!messages || messages.length === 0) {
       await supabaseAdmin
@@ -206,16 +222,16 @@ async function processDigest(job: Job<DigestJobData>) {
     const themeLabels: Record<string, string> = {
       conversa: "Conversa do dia",
       aula: "Aula do dia",
-      jornalistico: "Jornal do dia",
+      jornalístico: "Jornal do dia",
       resumo: "Resumo executivo",
-      comentarios: "Comentarios do dia",
+      comentários: "Comentarios do dia",
       storytelling: "Historias do dia",
       estudo: "Estudo do dia",
       debate: "Debate do dia",
       entrevista: "Entrevista do dia",
       motivacional: "Motivacional do dia",
     };
-    const themeEmojis: Record<string, string> = { conversa: "\uD83D\uDCAC", aula: "\uD83C\uDF93", jornalistico: "\uD83D\uDCF0", resumo: "\uD83D\uDCCB", comentarios: "\uD83D\uDDE3\uFE0F", storytelling: "\uD83D\uDCD6", estudo: "\uD83D\uDCD5", debate: "\u2694\uFE0F", entrevista: "\uD83C\uDF99\uFE0F", motivacional: "\uD83D\uDD25" };
+    const themeEmojis: Record<string, string> = { conversa: "\uD83D\uDCAC", aula: "\uD83C\uDF93", jornalístico: "\uD83D\uDCF0", resumo: "\uD83D\uDCCB", comentários: "\uD83D\uDDE3\uFE0F", storytelling: "\uD83D\uDCD6", estudo: "\uD83D\uDCD5", debate: "\u2694\uFE0F", entrevista: "\uD83C\uDF99\uFE0F", motivacional: "\uD83D\uDD25" };
 
     const allDigestIds: string[] = [];
     const allMessageIds: string[] = [];
