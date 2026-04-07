@@ -285,7 +285,7 @@ type MaiaAction =
   | { type: "list_digests" }
   | { type: "chat_digest"; question: string }
   | { type: "show_themes" }
-  | { type: "search_flights"; origin: string; destination: string; dates?: string }
+  | { type: "search_flights"; origin: string; destination: string; dates?: string; passengers?: number; children?: number }
   | { type: "search_products"; query: string }
   | { type: "none" };
 
@@ -362,7 +362,9 @@ function parseAction(text: string): { cleanText: string; action: MaiaAction } {
           type: "search_flights",
           origin: data.origin || data.from || "",
           destination: data.destination || data.to || "",
-          dates: data.dates || data.date || undefined,
+          dates: data.dates || data.date || data.period || undefined,
+          passengers: data.passengers || data.adults || 1,
+          children: data.children || data.kids || 0,
         },
       };
     case "SEARCH_PRODUCTS":
@@ -585,7 +587,7 @@ async function executeAction(userId: string, action: MaiaAction): Promise<string
 if (action.type === "search_flights") {
     if (!action.origin || !action.destination) return "Preciso saber a origem e o destino. Ex: passagem de Sao Paulo para Rio de Janeiro.";
     console.log('[Maia] Searching flights:', action.origin, '->', action.destination);
-    const result = await searchFlights(action.origin, action.destination, action.dates);
+    const result = await searchFlights(action.origin, action.destination, { dates: action.dates, passengers: action.passengers, children: action.children });
     return result;
   }
 
@@ -726,7 +728,7 @@ ACOES DISPONIVEIS (use SOMENTE quando tiver as informações):
 10. VER HISTÓRICO: [ACTION:LIST_DIGESTS][/ACTION]
 11. TIRAR DUVIDA SOBRE PODCAST: [ACTION:CHAT_DIGEST]{"question":"pergunta do usuário"}[/ACTION] — Use quando o usuário perguntar sobre conteúdo de um podcast gerado
 12. MOSTRAR TEMAS DE ÁUDIO: [ACTION:SHOW_THEMES][/ACTION] — Use SEMPRE que for perguntar qual tema/estilo de áudio o usuário prefere. Envia lista formatada por texto automaticamente
-13. BUSCAR PASSAGENS: [ACTION:SEARCH_FLIGHTS]{"origin":"cidade origem","destination":"cidade destino","dates":"datas opcional"}[/ACTION] — Busca as passagens aereas mais baratas ida e volta direto no Google
+13. BUSCAR PASSAGENS: [ACTION:SEARCH_FLIGHTS]{"origin":"cidade origem","destination":"cidade destino","dates":"periodo","passengers":1,"children":0}[/ACTION] — Busca passagens aereas mais baratas ida e volta no Google. OBRIGATORIO: antes de buscar, pergunte ao usuario: 1) De onde para onde? 2) Quantos adultos? 3) Tem crianca? Quantas? 4) Qual periodo/datas? Se o usuario ja informou tudo, busque direto.
 14. BUSCAR PRODUTOS: [ACTION:SEARCH_PRODUCTS]{"query":"nome do produto"}[/ACTION] — Busca os precos mais baratos de produtos direto no Google Shopping
 
 REGRAS CRITICAS:
@@ -743,6 +745,14 @@ REGRA MAIS IMPORTANTE - NUNCA QUEBRE ESTA REGRA:
 - Quando o usuario perguntar sobre passagens aereas, voos, ou viagens, use [ACTION:SEARCH_FLIGHTS] com origin e destination.
 - Quando o usuario perguntar sobre precos de produtos, ofertas, ou compras, use [ACTION:SEARCH_PRODUCTS] com o nome do produto.
 - SEARCH_FLIGHTS e SEARCH_PRODUCTS buscam direto no Google em tempo real e retornam os menores precos.
+- FLUXO PASSAGENS OBRIGATORIO: Se o usuario pedir passagem mas NAO informar todos os dados, PERGUNTE antes de buscar:
+  1) Origem e destino (se faltou algum)
+  2) Quantos passageiros adultos?
+  3) Tem crianca viajando? Quantas e qual idade?
+  4) Qual periodo ou datas flexiveis?
+  Quando tiver TODAS as infos, execute SEARCH_FLIGHTS com origin, destination, dates, passengers e children.
+- Se o usuario ja informou tudo na mesma mensagem, busque direto sem perguntar.
+- Nos resultados de passagens, SEMPRE destaque: escalas (cidade + tempo de conexao), duracao total do voo, companhia aerea e melhor periodo.
 - NUNCA diga "vou buscar" sem incluir [ACTION:SEARCH_URL]...[/ACTION] na mesma resposta.
 - Se você promete uma ação mas não inclui a tag, a ação NÃO acontece e o usuário fica esperando.
 - Após executar a ação, SEMPRE confirme o resultado E pergunte: "Quer que eu gere o podcast agora ou prefere receber no horário agendado?"
@@ -804,7 +814,6 @@ function detectIntentFromResponse(response: string, userMessage: string): MaiaAc
       const origin = fromTo[1].trim();
       const dest = fromTo[2].trim();
       console.log("[Maia] Intent detected: SEARCH_FLIGHTS", origin, "->", dest);
-      return { type: "search_flights", origin, destination: dest };
     }
   }
 
