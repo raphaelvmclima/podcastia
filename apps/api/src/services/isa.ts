@@ -1,3 +1,4 @@
+import { searchFlights, searchProducts, searchGoogle } from "./google-search.js";
 /**
  * Maia - WhatsApp AI Assistant for PodcastIA
  * Enhanced: multi-source types, media understanding, dashboard, URL search
@@ -284,6 +285,8 @@ type MaiaAction =
   | { type: "list_digests" }
   | { type: "chat_digest"; question: string }
   | { type: "show_themes" }
+  | { type: "search_flights"; origin: string; destination: string; dates?: string }
+  | { type: "search_products"; query: string }
   | { type: "none" };
 
 function parseAction(text: string): { cleanText: string; action: MaiaAction } {
@@ -352,6 +355,24 @@ function parseAction(text: string): { cleanText: string; action: MaiaAction } {
     case "CHAT_DIGEST":
       return { cleanText, action: { type: "chat_digest", question: data.question || "" } };
     case "SHOW_THEMES":
+    case "SEARCH_FLIGHTS":
+      return {
+        cleanText,
+        action: {
+          type: "search_flights",
+          origin: data.origin || data.from || "",
+          destination: data.destination || data.to || "",
+          dates: data.dates || data.date || undefined,
+        },
+      };
+    case "SEARCH_PRODUCTS":
+      return {
+        cleanText,
+        action: {
+          type: "search_products",
+          query: data.query || data.product || "",
+        },
+      };
       return { cleanText, action: { type: "show_themes" } };
     default:
       return { cleanText, action: { type: "none" } };
@@ -561,6 +582,20 @@ async function executeAction(userId: string, action: MaiaAction): Promise<string
     return result;
   }
 
+if (action.type === "search_flights") {
+    if (!action.origin || !action.destination) return "Preciso saber a origem e o destino. Ex: passagem de Sao Paulo para Rio de Janeiro.";
+    console.log('[Maia] Searching flights:', action.origin, '->', action.destination);
+    const result = await searchFlights(action.origin, action.destination, action.dates);
+    return result;
+  }
+
+  if (action.type === "search_products") {
+    if (!action.query) return "Preciso saber qual produto voce quer buscar.";
+    console.log('[Maia] Searching products:', action.query);
+    const result = await searchProducts(action.query);
+    return result;
+  }
+
   if (action.type === "show_themes") {
     return "__SHOW_THEMES__";
   }
@@ -691,6 +726,8 @@ ACOES DISPONIVEIS (use SOMENTE quando tiver as informações):
 10. VER HISTÓRICO: [ACTION:LIST_DIGESTS][/ACTION]
 11. TIRAR DUVIDA SOBRE PODCAST: [ACTION:CHAT_DIGEST]{"question":"pergunta do usuário"}[/ACTION] — Use quando o usuário perguntar sobre conteúdo de um podcast gerado
 12. MOSTRAR TEMAS DE ÁUDIO: [ACTION:SHOW_THEMES][/ACTION] — Use SEMPRE que for perguntar qual tema/estilo de áudio o usuário prefere. Envia lista formatada por texto automaticamente
+13. BUSCAR PASSAGENS: [ACTION:SEARCH_FLIGHTS]{"origin":"cidade origem","destination":"cidade destino","dates":"datas opcional"}[/ACTION] — Busca as passagens aereas mais baratas ida e volta direto no Google
+14. BUSCAR PRODUTOS: [ACTION:SEARCH_PRODUCTS]{"query":"nome do produto"}[/ACTION] — Busca os precos mais baratos de produtos direto no Google Shopping
 
 REGRAS CRITICAS:
 - MÁXIMO UMA action tag por mensagem, SEMPRE no FINAL da resposta
@@ -703,6 +740,9 @@ REGRA MAIS IMPORTANTE - NUNCA QUEBRE ESTA REGRA:
 - Quando você disser que vai fazer algo (criar fonte, gerar podcast, listar, etc), você DEVE incluir a action tag correspondente NA MESMA MENSAGEM.
 - NUNCA diga "vou criar" sem incluir [ACTION:CREATE_SOURCE]...[/ACTION] na mesma resposta.
 - NUNCA diga "vou gerar" sem incluir [ACTION:GENERATE_NOW][/ACTION] na mesma resposta.
+- Quando o usuario perguntar sobre passagens aereas, voos, ou viagens, use [ACTION:SEARCH_FLIGHTS] com origin e destination.
+- Quando o usuario perguntar sobre precos de produtos, ofertas, ou compras, use [ACTION:SEARCH_PRODUCTS] com o nome do produto.
+- SEARCH_FLIGHTS e SEARCH_PRODUCTS buscam direto no Google em tempo real e retornam os menores precos.
 - NUNCA diga "vou buscar" sem incluir [ACTION:SEARCH_URL]...[/ACTION] na mesma resposta.
 - Se você promete uma ação mas não inclui a tag, a ação NÃO acontece e o usuário fica esperando.
 - Após executar a ação, SEMPRE confirme o resultado E pergunte: "Quer que eu gere o podcast agora ou prefere receber no horário agendado?"
@@ -753,6 +793,31 @@ function detectIntentFromResponse(response: string, userMessage: string): MaiaAc
     else if (url.includes("feed") || url.includes("rss") || url.includes(".xml")) { sourceType = "rss"; name = url; }
     console.log("[Maia] URL-in-message detected while GPT asks for link. Creating directly: " + sourceType + " " + url);
     return { type: "create_source", sourceType, name: name || "Nova fonte", config: { url }, topic: name, theme: "conversa" };
+  }
+
+// DETECT FLIGHTS: user asks about flights/passagens
+  const u = userMessage.toLowerCase();
+  if (u.match(/passag|voo|voar|aere|flight/) && u.match(/para |pra |-> |→ /)) {
+    // Extract origin and destination from user message
+    const fromTo = u.match(/(?:de|from|saindo de)s+([ws]+?)s+(?:para|pra|to|→|->)s+([ws]+?)(?:s+(?:ida|em|no dia|dia|date)|[.,!?]|$)/i);
+    if (fromTo) {
+      const origin = fromTo[1].trim();
+      const dest = fromTo[2].trim();
+      console.log("[Maia] Intent detected: SEARCH_FLIGHTS", origin, "->", dest);
+      return { type: "search_flights", origin, destination: dest };
+    }
+  }
+
+  // DETECT PRODUCTS: user asks about product prices
+  if (u.match(/pre[cç]o|quanto custa|mais barato|comprar|onde encontr|oferta/) && !u.match(/passag|voo|aere/)) {
+    const productMatch = u.match(/(?:pre[cç]o|quanto custa|mais barato|comprar|onde encontr|oferta)s+(?:de?s+|do?s+|da?s+)?(.+)/i);
+    if (productMatch) {
+      const query = productMatch[1].replace(/[?!.,]+$/g, "").trim();
+      if (query.length > 2) {
+        console.log("[Maia] Intent detected: SEARCH_PRODUCTS", query);
+        return { type: "search_products", query };
+      }
+    }
   }
 
   // FIRST: Detect "vou gerar" / "gerar agora" (priority over "vou criar")
