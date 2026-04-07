@@ -355,6 +355,7 @@ function parseAction(text: string): { cleanText: string; action: MaiaAction } {
     case "CHAT_DIGEST":
       return { cleanText, action: { type: "chat_digest", question: data.question || "" } };
     case "SHOW_THEMES":
+      return { cleanText, action: { type: "show_themes" } };
     case "SEARCH_FLIGHTS":
       return {
         cleanText,
@@ -375,7 +376,6 @@ function parseAction(text: string): { cleanText: string; action: MaiaAction } {
           query: data.query || data.product || "",
         },
       };
-      return { cleanText, action: { type: "show_themes" } };
     default:
       return { cleanText, action: { type: "none" } };
   }
@@ -809,17 +809,18 @@ function detectIntentFromResponse(response: string, userMessage: string): MaiaAc
   const u = userMessage.toLowerCase();
   if (u.match(/passag|voo|voar|aere|flight/) && u.match(/para |pra |-> |→ /)) {
     // Extract origin and destination from user message
-    const fromTo = u.match(/(?:de|from|saindo de)s+([ws]+?)s+(?:para|pra|to|→|->)s+([ws]+?)(?:s+(?:ida|em|no dia|dia|date)|[.,!?]|$)/i);
+    const fromTo = u.match(/(?:de|from|saindo de)\s+([\w\s]+?)\s+(?:para|pra|to|→|->)\s+([\w\s]+?)(?:\s+(?:ida|em|no dia|dia|date)|[.,!?]|$)/i);
     if (fromTo) {
       const origin = fromTo[1].trim();
       const dest = fromTo[2].trim();
       console.log("[Maia] Intent detected: SEARCH_FLIGHTS", origin, "->", dest);
+      return { type: "search_flights", origin, destination: dest };
     }
   }
 
   // DETECT PRODUCTS: user asks about product prices
   if (u.match(/pre[cç]o|quanto custa|mais barato|comprar|onde encontr|oferta/) && !u.match(/passag|voo|aere/)) {
-    const productMatch = u.match(/(?:pre[cç]o|quanto custa|mais barato|comprar|onde encontr|oferta)s+(?:de?s+|do?s+|da?s+)?(.+)/i);
+    const productMatch = u.match(/(?:pre[cç]o|quanto custa|mais barato|comprar|onde encontr|oferta)\s+(?:de?\s+|do?\s+|da?\s+)?(.+)/i);
     if (productMatch) {
       const query = productMatch[1].replace(/[?!.,]+$/g, "").trim();
       if (query.length > 2) {

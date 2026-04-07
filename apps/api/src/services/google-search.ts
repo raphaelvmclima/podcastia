@@ -35,7 +35,69 @@ function getIATA(city: string): string {
 }
 
 /**
+ * Search for cheapest flights in cash (BRL)
+ */
+async function searchFlightsCash(
+  origin: string, originCode: string, destination: string, destCode: string,
+  paxInfo: string, dateInfo: string
+): Promise<string> {
+  const prompt = `Search Google Flights and Brazilian travel websites for the cheapest round-trip flights from ${origin} (${originCode}) to ${destination} (${destCode})${paxInfo}. Period: ${dateInfo}.
+
+Search these sites: google.com/travel/flights, skyscanner.com.br, decolar.com, kayak.com.br, 123milhas.com
+
+Return ONLY in Portuguese BR, this exact format (NO markdown, NO bold, NO asterisks):
+PASSAGENS ${origin.toUpperCase()} (${originCode}) -> ${destination.toUpperCase()} (${destCode})
+
+1. R$ [price] - [airline]
+   Ida: [duration] - [Direct OR 1 stop in CITY/CODE (Xh connection)]
+   Volta: [duration] - [Direct OR 1 stop in CITY/CODE (Xh connection)]
+   Periodo: [dates or month]
+   Reservar: [URL]
+
+2. (same format)
+3. (same format)
+4. (same format)
+5. (same format)
+
+MELHOR PERIODO: [cheapest month/week]
+VOO MAIS RAPIDO: [fastest option]
+DICA: [tip to save money on this route]
+
+List 5 cheapest options. Include layover city, airport code and connection time.`;
+
+  return geminiSearchGrounding(prompt);
+}
+
+/**
+ * Search for flights using miles (loyalty programs)
+ */
+async function searchFlightsMiles(
+  origin: string, originCode: string, destination: string, destCode: string,
+  paxInfo: string, dateInfo: string
+): Promise<string> {
+  const prompt = `Search Google for estimated miles pricing for round-trip flights from ${origin} (${originCode}) to ${destination} (${destCode})${paxInfo}. Period: ${dateInfo}.
+
+Search: "smiles ${originCode} ${destCode} milhas", "maxmilhas ${origin} ${destination}", "123milhas milhas ${origin} ${destination}", "latam pass ${originCode} ${destCode}"
+
+Return ONLY in Portuguese BR (NO markdown, NO bold, NO asterisks):
+MILHAS ${origin.toUpperCase()} -> ${destination.toUpperCase()}
+
+Smiles (GOL): ~[estimated miles] milhas ida+volta | Taxas: ~R$ [estimated taxes]
+LATAM Pass: ~[estimated miles] milhas ida+volta | Taxas: ~R$ [estimated taxes]
+TudoAzul (Azul): ~[estimated miles] milhas ida+volta | Taxas: ~R$ [estimated taxes]
+MaxMilhas: a partir de ~R$ [price] (milhas de terceiros)
+
+DICA MILHAS: [1 sentence tip - best program for this route, best time to redeem]
+VEREDICTO: [compare cash price vs miles value in 1 sentence]
+
+Use approximate/estimated values based on search results. If exact data unavailable, use typical ranges for this distance/route.`;
+
+  return geminiSearchGrounding(prompt);
+}
+
+/**
  * Search Google via Gemini grounding for cheapest flights
+ * Runs cash and miles searches in parallel to avoid truncation
  */
 export async function searchFlights(
   origin: string,
@@ -51,31 +113,16 @@ export async function searchFlights(
     ? ` for ${pax} adult${pax > 1 ? "s" : ""}${kids > 0 ? ` and ${kids} child${kids > 1 ? "ren" : ""}` : ""}`
     : "";
 
-  const prompt = `Search Google Flights and Brazilian travel websites for the cheapest round-trip flights from ${origin} (${originCode}) to ${destination} (${destCode})${paxInfo}. Period: ${dateInfo}.
+  // Run cash and miles searches in parallel
+  const [cashResult, milesResult] = await Promise.allSettled([
+    searchFlightsCash(origin, originCode, destination, destCode, paxInfo, dateInfo),
+    searchFlightsMiles(origin, originCode, destination, destCode, paxInfo, dateInfo),
+  ]);
 
-Search these sites: google.com/travel/flights, skyscanner.com.br, decolar.com, 123milhas.com, maxmilhas.com.br, kayak.com.br
+  const cashText = cashResult.status === "fulfilled" ? cashResult.value : "Nao consegui buscar passagens em dinheiro.";
+  const milesText = milesResult.status === "fulfilled" ? milesResult.value : "Nao consegui buscar passagens com milhas.";
 
-Return ONLY in Portuguese BR, this exact format (NO markdown, NO bold, NO asterisks):
-PASSAGENS ${origin.toUpperCase()} (${originCode}) -> ${destination.toUpperCase()} (${destCode})
-${pax > 1 || kids > 0 ? `${pax} adulto${pax > 1 ? "s" : ""}${kids > 0 ? ` + ${kids} crianca${kids > 1 ? "s" : ""}` : ""}\n` : ""}
-1. R$ [total price${pax > 1 ? " per person" : ""}] - [airline] 
-   Ida: [flight duration] - [Direct OR 1 stop in CITY/AIRPORT CODE (Xh Xmin layover)]
-   Volta: [flight duration] - [Direct OR 1 stop in CITY/AIRPORT CODE (Xh Xmin layover)]
-   Periodo: [specific dates or month]
-   Reservar: [URL from google flights or travel site]
-
-2. (same format)
-3. (same format)
-4. (same format)
-5. (same format)
-
-MELHOR PERIODO: [cheapest month/week found]
-VOO MAIS RAPIDO: [fastest option with duration]
-DICA: [specific tip for this route to save money]
-
-List 5 options from cheapest to most expensive. ALWAYS include layover city name, airport code, and connection time. If direct flight exists, highlight it. Use real search URLs.`;
-
-  return geminiSearchGrounding(prompt);
+  return cashText + "\n\n---\n\n" + milesText;
 }
 
 /**
@@ -135,7 +182,7 @@ async function geminiSearchGrounding(prompt: string): Promise<string> {
           tools: [{ googleSearch: {} }],
           generationConfig: { maxOutputTokens: 8192, temperature: 0.1 },
         }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(60000),
       }
     );
 
