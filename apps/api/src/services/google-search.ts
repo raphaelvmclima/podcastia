@@ -133,7 +133,7 @@ async function geminiSearchGrounding(prompt: string): Promise<string> {
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           tools: [{ googleSearch: {} }],
-          generationConfig: { maxOutputTokens: 3000, temperature: 0.1 },
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.1 },
         }),
         signal: AbortSignal.timeout(30000),
       }
