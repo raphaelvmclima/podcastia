@@ -43,6 +43,13 @@ export async function activateSession(userId: string): Promise<void> {
 // Track active sessions for timeout notification
 const sessionTimeouts = new Map<string, NodeJS.Timeout>();
 
+// Cleanup expired session timeouts every 10 minutes
+setInterval(() => {
+  if (sessionTimeouts.size > 100) {
+    console.warn("[Maia] sessionTimeouts has " + sessionTimeouts.size + " entries, possible leak");
+  }
+}, 600000);
+
 export function scheduleSessionTimeout(userId: string, phone: string, token: string, userName: string): void {
   // Clear any existing timeout
   const existing = sessionTimeouts.get(userId);
@@ -147,25 +154,36 @@ export async function getUserByPhone(phone: string): Promise<{ userId: string; t
 
   if (!settings?.length) return null;
 
-  for (const s of settings) {
-    if (!s.wa_instance_token) continue;
-    try {
-      const res = await fetch(`${process.env.UAZAPI_URL || "https://loumarturismo.uazapi.com"}/instance/status`, {
-        headers: { token: s.wa_instance_token },
-      });
-      const data = (await res.json()) as any;
-      const owner = (data?.instance?.owner || "").replace(/\D/g, "");
-      if (owner && owner === digits) {
-        const { data: user } = await supabaseAdmin.from("users").select("name").eq("id", s.user_id).single();
-        const result = { userId: s.user_id, token: s.wa_instance_token, name: user?.name || "amigo" };
-        await redis.set(`maia:user:${digits}`, JSON.stringify(result), "EX", 86400);
-        return result;
-      }
-    } catch (err: any) {
-      console.error(`[Maia] Error checking instance:`, err.message);
-    }
-  }
-  return null;
+  const baseUrl = process.env.UAZAPI_URL || "https://loumarturismo.uazapi.com";
+
+  // Parallel: check all instances at once instead of sequentially
+  const checks = settings
+    .filter((s) => !!s.wa_instance_token)
+    .map(async (s) => {
+      try {
+        const res = await fetch(`${baseUrl}/instance/status`, {
+          headers: { token: s.wa_instance_token },
+          signal: AbortSignal.timeout(10000),
+        });
+        const data = (await res.json()) as any;
+        const owner = (data?.instance?.owner || "").replace(/\D/g, "");
+        if (owner && owner === digits) return s;
+      } catch {}
+      return null;
+    });
+
+  const results = await Promise.allSettled(checks);
+  const match = results.find(
+    (r) => r.status === "fulfilled" && r.value !== null
+  ) as PromiseFulfilledResult<typeof settings[0]> | undefined;
+
+  if (!match?.value) return null;
+
+  const s = match.value;
+  const { data: user } = await supabaseAdmin.from("users").select("name").eq("id", s.user_id).single();
+  const result = { userId: s.user_id, token: s.wa_instance_token, name: user?.name || "amigo" };
+  await redis.set(`maia:user:${digits}`, JSON.stringify(result), "EX", 86400);
+  return result;
 }
 
 // --------------- URL Search ---------------

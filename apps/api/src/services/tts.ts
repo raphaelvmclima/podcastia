@@ -1,7 +1,14 @@
 import { env } from "../lib/env.js";
 import { execSync } from "child_process";
-import { writeFileSync, readFileSync, unlinkSync, existsSync, mkdirSync } from "fs";
+import { writeFileSync, readFileSync, unlinkSync, existsSync, mkdirSync, openSync, fsyncSync, closeSync } from "fs";
 import path from "path";
+
+/** Sync file to disk before ffmpeg reads it (prevents race condition) */
+function syncFile(filePath: string): void {
+  const fd = openSync(filePath, "r");
+  fsyncSync(fd);
+  closeSync(fd);
+}
 
 const TMP_DIR = "/tmp/podcastia";
 const MUSIC_CACHE_PATH = "/tmp/podcastia/bg_music.mp3";
@@ -143,6 +150,7 @@ export async function generateAudio(
 
   const audioBuffer = Buffer.from(audioBase64, "base64");
   writeFileSync(pcmFile, audioBuffer);
+  syncFile(pcmFile);
 
   execSync(`ffmpeg -y -f s16le -ar 24000 -ac 1 -i ${pcmFile} -codec:a mp3 -b:a 192k ${mp3File}`);
 
@@ -160,7 +168,7 @@ export async function generateAudio(
     "[mixed]afade=t=out:st=${FADE_START}:d=4",
   ].join(";");
 
-  const mixCmd = `DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ${mp3File}) && FADE_START=$(echo "$DURATION + 4" | bc) && ffmpeg -y -i ${mp3File} -i ${musicFile} -filter_complex "${filterComplex}" -ac 1 -codec:a libvorbis -q:a 4 ${outputFile}`;
+  const mixCmd = `DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ${mp3File}) && FADE_START=$(echo "$DURATION + 4" | bc) && ffmpeg -y -i ${mp3File} -i ${musicFile} -filter_complex "${filterComplex}" -ac 1 -codec:a libopus -b:a 48k ${outputFile}`;
 
   execSync(mixCmd, { shell: "/bin/bash" });
 

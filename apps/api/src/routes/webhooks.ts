@@ -128,7 +128,12 @@ async function generateMaiaAudio(text: string, phone: string, token: string): Pr
   }
 
   writeFileSync(pcmFile, Buffer.from(audioB64, "base64"));
-  execSync(`ffmpeg -y -f s16le -ar 24000 -ac 1 -i ${pcmFile} -codec:a libvorbis -q:a 4 ${oggFile} 2>/dev/null`);
+  // fsync to prevent race condition with ffmpeg
+  const { openSync, fsyncSync, closeSync } = await import("fs");
+  const fd = openSync(pcmFile, "r");
+  fsyncSync(fd);
+  closeSync(fd);
+  execSync(`ffmpeg -y -f s16le -ar 24000 -ac 1 -i ${pcmFile} -codec:a libopus -b:a 48k ${oggFile} 2>/dev/null`);
 
   const audioBase64 = readFileSync(oggFile).toString("base64");
   await sendWhatsAppAudio(phone, audioBase64, token);
@@ -269,7 +274,6 @@ async function handleIsaMessage(phone: string, text: string, mediaContext?: stri
     await activateSession(userId);
     scheduleSessionTimeout(userId, phone, token, name);
     const greeting = await getGreeting(name, userId);
-    sendWhatsAppText(phone, "Maia gravando um áudio... 🎙️", token).catch(() => {});
     generateMaiaAudio(greeting, phone, token).catch((err) =>
       console.error("[Maia] Greeting audio error:", err.message)
     );
@@ -289,7 +293,6 @@ async function handleIsaMessage(phone: string, text: string, mediaContext?: stri
     await deactivateSession(userId);
     cancelSessionTimeout(userId);
     const farewell = getFarewell(name);
-    sendWhatsAppText(phone, "Maia gravando um áudio... 🎙️", token).catch(() => {});
     generateMaiaAudio(farewell, phone, token).catch((err) =>
       console.error("[Maia] Farewell audio error:", err.message)
     );
@@ -306,9 +309,6 @@ async function handleIsaMessage(phone: string, text: string, mediaContext?: stri
 
   // Reschedule timeout on every interaction
   scheduleSessionTimeout(userId, phone, token, name);
-
-  // Send "typing" indicator immediately
-  sendWhatsAppText(phone, "Maia gravando um áudio... 🎙️", token).catch(() => {});
 
   const t0 = Date.now();
   const response = await processMessage(userId, name, text, mediaContext);
@@ -327,17 +327,30 @@ async function handleIsaMessage(phone: string, text: string, mediaContext?: stri
   if (isAskingTheme) {
     // Send formatted text list ONLY (no audio with theme names)
     sendWhatsAppText(phone, THEMES_TEXT, token).catch(() => {});
-    // Audio with FIXED phrase - never let GPT list themes in audio
-    generateMaiaAudio("Te mandei a lista com todos os estilos de podcast disponíveis. Dá uma olhada e me diz qual combina mais com o que você quer!", phone, token).catch((err) =>
+    generateMaiaAudio("Te mandei a lista com todos os estilos de podcast disponíveis. Da uma olhada e me diz qual combina mais com o que voce quer!", phone, token).catch((err) =>
       console.error("[Maia] Audio error:", err.message)
     );
     console.log("[Maia] Themes list sent to", name);
   } else {
-    // Normal response - audio only
-    generateMaiaAudio(response, phone, token).catch((err) =>
-      console.error("[Maia] Audio error:", err.message)
-    );
-    console.log("[Maia] Responded to", name, ":", response.slice(0, 80));
+    // Smart response: data-heavy responses (flights, products, lists, dashboard) → text
+    // Conversational responses → audio
+    const isDataResponse = response.includes("PASSAGENS ") || response.includes("MILHAS ") ||
+      response.includes("MELHORES PRECOS") || response.includes("Dashboard PodcastIA") ||
+      response.includes("Fontes ativas:") || response.includes("Ultimos podcasts:") ||
+      response.includes("R$ ") && response.includes("Reservar:") ||
+      response.length > 1500;
+
+    if (isDataResponse) {
+      // Data responses: send as text (more readable + links are clickable)
+      sendWhatsAppText(phone, response, token).catch(() => {});
+      console.log("[Maia] Text response to", name, "(data, " + response.length + " chars)");
+    } else {
+      // Conversational: send as audio
+      generateMaiaAudio(response, phone, token).catch((err) =>
+        console.error("[Maia] Audio error:", err.message)
+      );
+      console.log("[Maia] Audio response to", name, ":", response.slice(0, 80));
+    }
   }
 }
 

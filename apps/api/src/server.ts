@@ -54,13 +54,46 @@ app.get("/api/podcast-themes", async () => {
 });
 
 // Health check — enhanced with memory + version
-app.get("/api/health", async () => ({
-  status: "ok",
-  uptime: process.uptime(),
-  memory: Math.round((process.memoryUsage().rss / 1024 / 1024) * 100) / 100,
-  timestamp: new Date().toISOString(),
-  version: "1.1.0",
-}));
+app.get("/api/health", async () => {
+  const mem = process.memoryUsage();
+  const now = new Date();
+  const brtHours = (now.getUTCHours() - 3 + 24) % 24;
+  const brtTime = String(brtHours).padStart(2, "0") + ":" + String(now.getUTCMinutes()).padStart(2, "0");
+
+  // Count pending digest jobs
+  const { supabaseAdmin } = await import("./lib/supabase.js");
+  const { count: pendingJobs } = await supabaseAdmin
+    .from("digest_jobs")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending");
+
+  const { count: totalUsers } = await supabaseAdmin
+    .from("users")
+    .select("*", { count: "exact", head: true });
+
+  const { count: activeSources } = await supabaseAdmin
+    .from("source_connections")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", true);
+
+  return {
+    status: "ok",
+    version: "1.2.0",
+    uptime: Math.round(process.uptime()),
+    uptimeHuman: Math.floor(process.uptime() / 3600) + "h " + Math.floor((process.uptime() % 3600) / 60) + "m",
+    memory: {
+      rss: Math.round(mem.rss / 1024 / 1024) + "MB",
+      heap: Math.round(mem.heapUsed / 1024 / 1024) + "/" + Math.round(mem.heapTotal / 1024 / 1024) + "MB",
+    },
+    brt: brtTime,
+    stats: {
+      users: totalUsers || 0,
+      activeSources: activeSources || 0,
+      pendingJobs: pendingJobs || 0,
+    },
+    timestamp: now.toISOString(),
+  };
+});
 
 // Start server
 try {
