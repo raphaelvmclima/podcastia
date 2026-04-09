@@ -201,7 +201,7 @@ const SOURCE_TYPES = [
   {
     id: "passagens",
     name: "Passagens Aéreas",
-    desc: "Monitore preços por destino",
+    desc: "Busque as passagens mais baratas",
     color: "#0EA5E9",
     bg: "rgba(14, 165, 233, 0.12)",
     status: "active",
@@ -281,8 +281,12 @@ const FORM_FIELDS: Record<string, FormField[]> = {
     { key: "filters", label: "Filtros (opcional)", placeholder: "departamento, status...", optional: true },
   ],
   passagens: [
-    { key: "keywords", label: "Destinos ou palavras-chave (separados por virgula)", placeholder: "Lisboa, Orlando, Paris" },
-    { key: "feedUrls", label: "URLs de feeds RSS (opcional, um por linha)", placeholder: "https://www.melhoresdestinos.com.br/feed", type: "textarea", optional: true },
+    { key: "origin", label: "Cidade de origem", placeholder: "Ex: Sao Paulo, Curitiba, Foz do Iguacu" },
+    { key: "destination", label: "Cidade de destino", placeholder: "Ex: Lisboa, Orlando, Rio de Janeiro" },
+    { key: "adults", label: "Adultos", placeholder: "1", optional: true },
+    { key: "children", label: "Criancas", placeholder: "0", optional: true },
+    { key: "period", label: "Periodo / Datas (opcional)", placeholder: "Ex: Maio 2026, ferias de julho, datas flexiveis", optional: true },
+    { key: "keywords", label: "Palavras-chave extras (opcional)", placeholder: "direto, GOL, classe executiva", optional: true },
   ],
   google_calendar: [
     { key: "icalUrl", label: "URL do calendario iCal (.ics)", placeholder: "https://calendar.google.com/calendar/ical/...@group.calendar.google.com/public/basic.ics" },
@@ -474,7 +478,12 @@ export default function FontesPage() {
   };
 
   const handleAddSource = async () => {
-    if (!formName.trim() || !activePanel) return;
+    // Auto-generate name for passagens if empty
+    let effectiveName = formName.trim();
+    if (!effectiveName && activePanel === "passagens" && formConfig.origin && formConfig.destination) {
+      effectiveName = "Passagens " + formConfig.origin.trim() + " -> " + formConfig.destination.trim();
+    }
+    if (!effectiveName || !activePanel) return;
 
     const fields = FORM_FIELDS[activePanel] || [];
     const requiredFields = fields.filter((f) => !f.optional);
@@ -486,7 +495,10 @@ export default function FontesPage() {
       const finalConfig: Record<string, any> = { ...formConfig };
       if (activePanel === "passagens") {
         if (finalConfig.keywords) finalConfig.keywords = finalConfig.keywords.split(",").map((s: string) => s.trim()).filter(Boolean);
-        if (finalConfig.feedUrls) finalConfig.feedUrls = finalConfig.feedUrls.split("\n").map((s: string) => s.trim()).filter(Boolean);
+        if (finalConfig.adults) finalConfig.adults = parseInt(finalConfig.adults) || 1;
+        else finalConfig.adults = 1;
+        if (finalConfig.children) finalConfig.children = parseInt(finalConfig.children) || 0;
+        else finalConfig.children = 0;
       }
       if (activePanel === "google_shopping") {
         if (finalConfig.products) finalConfig.products = finalConfig.products.split(",").map((s: string) => s.trim()).filter(Boolean);
@@ -494,10 +506,10 @@ export default function FontesPage() {
       }
       const res = await api("/api/sources", {
         method: "POST",
-        body: JSON.stringify({ type: activePanel, name: formName, config: finalConfig, podcast_theme: selectedTheme }),
+        body: JSON.stringify({ type: activePanel, name: effectiveName, config: finalConfig, podcast_theme: selectedTheme }),
       });
       const createdId = res?.id || res?.source?.id;
-      const savedName = formName;
+      const savedName = effectiveName;
       setActivePanel(null);
       setShowTypeSelector(false);
       await fetchSources();
@@ -1165,7 +1177,7 @@ export default function FontesPage() {
                 className="btn-primary"
                 onClick={handleAddSource}
                 disabled={
-                  !formName.trim() ||
+                  (!formName.trim() && !(activePanel === "passagens" && formConfig.origin?.trim() && formConfig.destination?.trim())) ||
                   saving ||
                   (activePanel !== "webhook" &&
                     (FORM_FIELDS[activePanel] || [])

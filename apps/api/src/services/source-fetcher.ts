@@ -11,6 +11,7 @@ import { fetchYouTubeContent } from './youtube-processor.js';
 import { fetchNewsForTopics } from './news-fetcher.js';
 import { fetchCRMContent } from './crm-processor.js';
 import { fetchFlightsContent } from './flights-processor.js';
+import { searchFlights } from './google-search.js';
 import { fetchCalendarContent } from './calendar-processor.js';
 import { fetchPricesContent } from './prices-processor.js';
 import { fetchStudyContent } from './research-fetcher.js';
@@ -196,20 +197,40 @@ export async function fetchSourceContent(source: SourceConfig): Promise<Captured
       }
 
       case 'passagens': {
-        const feedUrls = source.config.feedUrls || [];
-        const keywords = source.config.keywords || [];
-        const origins = source.config.origins || [];
-        const destinations = source.config.destinations || [];
-        const flightItems = await withTimeout(
-          fetchFlightsContent({ feedUrls, keywords, origins, destinations }),
-          timeoutMs,
-          `Flights: ${sourceName}`
-        );
-        result = flightItems.map(item => ({
-          sender: item.sender,
-          content: item.content,
-          group_name: item.group_name,
-        }));
+        const origin = source.config.origin || '';
+        const destination = source.config.destination || '';
+
+        if (origin && destination) {
+          // Active search via Google Search grounding (Gemini)
+          const adults = parseInt(source.config.adults) || 1;
+          const children = parseInt(source.config.children) || 0;
+          const period = source.config.period || undefined;
+          console.log(`[source-fetcher] Active flight search: ${origin} -> ${destination} (${adults} adults, ${children} children)`);
+          const searchResult = await withTimeout(
+            searchFlights(origin, destination, { passengers: adults, children, dates: period }),
+            90000, // 90s timeout for parallel Gemini calls
+            `FlightSearch: ${sourceName}`
+          );
+          result = [{
+            sender: 'Google Flights',
+            content: searchResult,
+            group_name: `Passagens ${origin} -> ${destination}`,
+          }];
+        } else {
+          // Fallback: RSS feed monitoring (legacy)
+          const feedUrls = source.config.feedUrls || [];
+          const keywords = source.config.keywords || [];
+          const flightItems = await withTimeout(
+            fetchFlightsContent({ feedUrls, keywords }),
+            timeoutMs,
+            `Flights: ${sourceName}`
+          );
+          result = flightItems.map(item => ({
+            sender: item.sender,
+            content: item.content,
+            group_name: item.group_name,
+          }));
+        }
         break;
       }
 
